@@ -15,9 +15,8 @@ interface Props {
   livePrice?: number;
 }
 
-function MarketCard({ market, yesOdds, noOdds, totalPool, livePrice }: Props) {
+function MarketCard({ market, yesOdds, totalPool, livePrice }: Props) {
   const yPct = yesOdds ? Number(yesOdds) / 1e16 : 50;
-  const nPct = noOdds  ? Number(noOdds)  / 1e16 : 50;
 
   const cryptoMeta = parseCryptoDescription(market.description);
   const coin = cryptoMeta ? COIN_BY_ID[cryptoMeta.coin] : null;
@@ -35,7 +34,7 @@ function MarketCard({ market, yesOdds, noOdds, totalPool, livePrice }: Props) {
 
   return (
     <Link href={`/market/${market.address}`} className="block">
-      <div className="group h-full flex flex-col rounded-lg border border-[#1f2630] bg-[#131820] hover:border-[#2a3340] transition-colors">
+      <div className="group h-full flex flex-col rounded-3xl border border-[#1f2630] bg-[#111b26] shadow-[0_20px_60px_-45px_rgba(0,0,0,0.7)] transition duration-200 hover:-translate-y-0.5 hover:border-[#2d9cdb]">
         {/* Top: thumb + question + big chance */}
         <div className="flex items-start gap-3 p-4">
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-[#0b0e12] ring-1 ring-[#1f2630]">
@@ -97,10 +96,10 @@ function MarketCard({ market, yesOdds, noOdds, totalPool, livePrice }: Props) {
 
         {/* Buy Yes / Buy No — small, secondary */}
         <div className="grid grid-cols-2 gap-2 px-4">
-          <div className="rounded-md bg-[#22c55e]/10 border border-[#22c55e]/20 py-1.5 text-center text-[12px] font-semibold text-[#22c55e] group-hover:bg-[#22c55e]/15 transition-colors">
+          <div className="rounded-2xl border border-[#22c55e]/20 bg-[#22c55e]/10 py-2 text-center text-[12px] font-semibold text-[#22c55e] group-hover:bg-[#22c55e]/15 transition-colors">
             Buy Yes
           </div>
-          <div className="rounded-md bg-[#ef4444]/10 border border-[#ef4444]/20 py-1.5 text-center text-[12px] font-semibold text-[#ef4444] group-hover:bg-[#ef4444]/15 transition-colors">
+          <div className="rounded-2xl border border-[#ef4444]/20 bg-[#ef4444]/10 py-2 text-center text-[12px] font-semibold text-[#ef4444] group-hover:bg-[#ef4444]/15 transition-colors">
             Buy No
           </div>
         </div>

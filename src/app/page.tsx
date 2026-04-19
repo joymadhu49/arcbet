@@ -174,45 +174,46 @@ export default function Home() {
       {/* Ticker */}
       <PriceTicker prices={prices} loading={pricesLoading} />
 
-      {/* Page header — title left, search right, KPIs inline */}
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-6 pb-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[22px] font-semibold tracking-tight text-[#f3f4f6]">
-                Markets
-              </h1>
-              <span className="inline-flex items-center gap-1.5 rounded-sm border border-[#1f2630] bg-[#131820] px-2 py-0.5 text-[10px] font-medium text-[#8b96a5]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e] animate-live" />
-                Arc Testnet · USDC gas
-              </span>
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-8 pb-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="rounded-[2rem] border border-[#1f2630] bg-[#111b26]/95 p-8 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.75)]">
+            <div className="inline-flex rounded-full border border-[#1f2630] bg-[#0b1522] px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-[#6b7280]">
+              Prediction markets
             </div>
-            <p className="mt-1 text-[13px] text-[#6b7280]">
-              Daily crypto prediction markets · Settled in USDC on Arc.
+            <h1 className="mt-4 text-4xl sm:text-5xl font-semibold tracking-tight text-[#f3f4f6]">
+              Trade daily markets with live pricing.
+            </h1>
+            <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[#cbd5e1]/90">
+              Discover testnet markets settled in USDC on Arc. Browse trending questions, filter by category, and bet from one secure wallet connection.
             </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="rounded-2xl border border-[#1f2630] bg-[#0b1522] px-4 py-3 text-sm text-[#f3f4f6]">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-[#6b7280]">Markets</div>
+                <div className="mt-2 text-2xl font-semibold">{addrList.length}</div>
+              </div>
+              <div className="rounded-2xl border border-[#1f2630] bg-[#0b1522] px-4 py-3 text-sm text-[#f3f4f6]">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-[#6b7280]">Open</div>
+                <div className="mt-2 text-2xl font-semibold">{openMarkets}</div>
+              </div>
+              <div className="rounded-2xl border border-[#1f2630] bg-[#0b1522] px-4 py-3 text-sm text-[#f3f4f6]">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-[#6b7280]">Volume</div>
+                <div className="mt-2 text-2xl font-semibold">{formatUSDC(totalVolume)}</div>
+              </div>
+            </div>
           </div>
 
-          {/* KPIs — three tight stats */}
-          <div className="flex items-stretch gap-0 rounded-md border border-[#1f2630] bg-[#131820] overflow-hidden">
-            <div className="px-4 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-[#6b7280]">Total Vol</div>
-              <div className="font-mono tabular text-sm font-semibold text-[#f3f4f6]">
-                {formatUSDC(totalVolume)}
-              </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1.5rem] border border-[#1f2630] bg-[#0f1726] p-4 text-sm">
+              <div className="text-[10px] uppercase tracking-[0.3em] text-[#6b7280]">Trending</div>
+              <div className="mt-3 text-3xl font-semibold text-[#f3f4f6]">Top</div>
             </div>
-            <div className="w-px bg-[#1f2630]" />
-            <div className="px-4 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-[#6b7280]">Open</div>
-              <div className="font-mono tabular text-sm font-semibold text-[#f3f4f6]">
-                {openMarkets}
-              </div>
+            <div className="rounded-[1.5rem] border border-[#1f2630] bg-[#0f1726] p-4 text-sm">
+              <div className="text-[10px] uppercase tracking-[0.3em] text-[#6b7280]">Settlement</div>
+              <div className="mt-3 text-3xl font-semibold text-[#f3f4f6]">USDC</div>
             </div>
-            <div className="w-px bg-[#1f2630]" />
-            <div className="px-4 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-[#6b7280]">Total</div>
-              <div className="font-mono tabular text-sm font-semibold text-[#f3f4f6]">
-                {addrList.length}
-              </div>
+            <div className="rounded-[1.5rem] border border-[#1f2630] bg-[#0f1726] p-4 text-sm">
+              <div className="text-[10px] uppercase tracking-[0.3em] text-[#6b7280]">Network</div>
+              <div className="mt-3 text-3xl font-semibold text-[#f3f4f6]">Arc</div>
             </div>
           </div>
         </div>

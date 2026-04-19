@@ -34,17 +34,21 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-[#1f2630] bg-[#0b0e12]/95 backdrop-blur">
+    <nav className="sticky top-0 z-50 border-b border-[#1f2630] bg-[#071021]/95 backdrop-blur">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center gap-8">
-          {/* Logo — flat, no gradient */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2d9cdb] text-[#0b0e12] font-bold text-sm">
+          <Link href="/" className="flex items-center gap-3 shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white font-black text-base shadow-lg shadow-[#1d4ed8]/20">
               A
             </div>
-            <span className="font-semibold text-[15px] tracking-tight text-[#f3f4f6]">
-              ArcBet
-            </span>
+            <div className="space-y-0.5">
+              <span className="block text-[15px] font-semibold tracking-tight text-[#f3f4f6]">
+                ArcBet
+              </span>
+              <span className="block text-[11px] uppercase tracking-[0.3em] text-[#6b7280]">
+                Testnet markets
+              </span>
+            </div>
           </Link>
 
           {/* Primary nav — flat, underline active */}

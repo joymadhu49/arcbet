@@ -1,10 +1,20 @@
-@import "../../../node_modules/tailwindcss/theme.css" layer(theme);
-@import "../../../node_modules/tailwindcss/preflight.css" layer(base);
-@import "../../../node_modules/tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
 
 :root {
-  --background: #0b0e12;
+  --background: #071021;
+  --surface: #0d1622;
+  --surface-strong: #111f2f;
+  --surface-soft: rgba(15, 24, 38, 0.92);
   --foreground: #f3f4f6;
+  --muted: #8b96a5;
+  --border: #1f2630;
+  --accent: #2d9cdb;
+  --accent-soft: rgba(45, 156, 219, 0.14);
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
 }
 
 @theme inline {
@@ -16,41 +26,47 @@
 
 * { box-sizing: border-box; }
 
+html, body { min-height: 100%; }
+
 body {
-  background: var(--background);
+  background: radial-gradient(circle at top left, rgba(45, 156, 219, 0.08), transparent 28%),
+              radial-gradient(circle at top right, rgba(94, 106, 210, 0.08), transparent 24%),
+              linear-gradient(180deg, #071021 0%, #080f18 45%, #091018 100%);
   color: var(--foreground);
   font-feature-settings: "ss01", "cv11";
 }
 
-/* Tabular digits everywhere numbers matter */
-.tabular {
-  font-variant-numeric: tabular-nums;
+.surface { background: var(--surface); }
+.surface-soft { background: var(--surface-soft); }
+.text-muted { color: var(--muted); }
+.border-surface { border-color: var(--border); }
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
 }
 
-/* Scrollbar — thin, unobtrusive */
+.tabular { font-variant-numeric: tabular-nums; }
+
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #1f2630; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #2a3340; }
 
-/* Hide scrollbar for horizontal strips */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
-/* Subtle pulse for live indicator */
 @keyframes live-pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.45; }
 }
 .animate-live { animation: live-pulse 1.6s ease-in-out infinite; }
 
-/* Very subtle skeleton shimmer */
 @keyframes skeleton {
   0%   { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #131820 0, #1a212b 40px, #131820 80px);
+  background: linear-gradient(90deg, #111b26 0, #172333 40px, #111b26 80px);
   background-size: 200px 100%;
   animation: skeleton 1.4s linear infinite;
 }

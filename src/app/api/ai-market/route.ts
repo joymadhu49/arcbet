@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet:beta";
 
 export async function POST(req: NextRequest): Promise<Response> {
   const apiKey = process.env.OPENROUTER_API_KEY;
