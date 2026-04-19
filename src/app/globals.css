@@ -1,8 +1,10 @@
-@import "tailwindcss";
+@import "../../../node_modules/tailwindcss/theme.css" layer(theme);
+@import "../../../node_modules/tailwindcss/preflight.css" layer(base);
+@import "../../../node_modules/tailwindcss/utilities.css" layer(utilities);
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0e12;
+  --foreground: #f3f4f6;
 }
 
 @theme inline {
@@ -12,15 +14,43 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Tabular digits everywhere numbers matter */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar — thin, unobtrusive */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1f2630; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #2a3340; }
+
+/* Hide scrollbar for horizontal strips */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* Subtle pulse for live indicator */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.animate-live { animation: live-pulse 1.6s ease-in-out infinite; }
+
+/* Very subtle skeleton shimmer */
+@keyframes skeleton {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #131820 0, #1a212b 40px, #131820 80px);
+  background-size: 200px 100%;
+  animation: skeleton 1.4s linear infinite;
 }

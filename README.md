@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ArcBet — Daily Crypto Prediction Markets
 
-## Getting Started
+> Polymarket-style daily (24h) crypto prediction markets, settled in USDC on **Arc Testnet** (Circle's L1 with USDC-as-gas).
 
-First, run the development server:
+## Stack
 
+| Layer | Tech |
+|-------|------|
+| Frontend | Next.js 16, TypeScript, Tailwind CSS |
+| Wallet | wagmi + viem (MetaMask / injected) |
+| Contracts | Solidity 0.8.24, Hardhat 3 |
+| Network | **Arc Testnet (Chain ID 5042002)** |
+| Settlement | USDC (`0x3600000000000000000000000000000000000000`) |
+| Price oracle | CoinGecko public API (no key) |
+
+## ⚠️ Arc Network Specifics
+
+- **Native gas token is USDC** (not ETH!) — your wallet needs USDC for both gas and bets
+- **Chain ID:** `5042002`
+- **RPC:** `https://rpc.testnet.arc.network`
+- **Explorer:** [testnet.arcscan.app](https://testnet.arcscan.app)
+- **Faucet:** [faucet.circle.com](https://faucet.circle.com/)
+
+## Setup
+
+### 1. Install
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Get testnet USDC
+Claim USDC on **Arc Testnet** at [faucet.circle.com](https://faucet.circle.com/) to your deployer wallet. ~10 USDC is enough for deploy + gas.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configure environment
+```bash
+cp .env.example .env.local
+# Fill in: DEPLOYER_PRIVATE_KEY, NEXT_PUBLIC_ADMIN_ADDRESS
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Deploy contracts
+```bash
+npx hardhat compile
+npx hardhat run scripts/deploy.ts --network arcTestnet
+```
 
-## Learn More
+Copy the printed `NEXT_PUBLIC_FACTORY_ADDRESS` and `NEXT_PUBLIC_TREASURY_ADDRESS` into `.env.local`.
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Run the app
+```bash
+npm run dev
+# → http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+arcbet/
+├── contracts/              # Solidity
+│   ├── MarketFactory.sol
+│   ├── PredictionMarket.sol
+│   └── Treasury.sol
+├── scripts/deploy.ts       # Deploys to Arc Testnet
+├── src/
+│   ├── app/                # Next.js 16 App Router pages
+│   │   ├── page.tsx                    # Home / market list with live price ticker
+│   │   ├── market/[address]/page.tsx   # Market detail + live price tracking
+│   │   ├── portfolio/page.tsx          # User positions + claims
+│   │   └── admin/page.tsx              # Gated: create + auto-resolve markets
+│   ├── components/
+│   │   ├── Navbar.tsx
+│   │   ├── MarketCard.tsx
+│   │   ├── BetModal.tsx
+│   │   └── Providers.tsx
+│   ├── hooks/
+│   │   ├── useMarkets.ts
+│   │   ├── useBet.ts
+│   │   └── useIsAdmin.ts
+│   └── lib/
+│       ├── chains.ts                   # Arc Testnet chain def
+│       ├── wagmi-config.ts             # Arc-only wagmi config
+│       ├── coingecko.ts                # Price fetching
+│       ├── cryptoMarkets.ts            # Daily market builder + metadata
+│       ├── constants.ts                # Verified Arc contract addresses
+│       └── utils.ts
+```
 
-## Deploy on Vercel
+## Daily Crypto Market Flow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Admin** opens `/admin` (only the wallet in `NEXT_PUBLIC_ADMIN_ADDRESS` sees the link)
+2. Clicks **"Launch all 5"** — creates 24h markets for BTC, ETH, SOL, XRP, BNB with target = spot + 2%
+3. Users bet YES/NO in USDC (approve + bet in two txs)
+4. 24 hours later, admin returns to `/admin` — each market shows live CoinGecko price vs target
+5. Admin clicks **"Auto-resolve"** — contract credits winners, 1.5% fee routed to Treasury
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Market metadata (coin, startUsd, targetUsd, createdAt) is embedded as a JSON tag in the on-chain `description` field so no contract changes are needed.
+
+## Revenue
+
+- **1.5% fee** on every bet, captured by `PredictionMarket` and forwarded to `Treasury`
+
+## Verified Sources
+
+- Arc Network docs: https://docs.arc.network
+- Connect to Arc:  https://docs.arc.network/arc/references/connect-to-arc
+- Contract addresses: https://docs.arc.network/arc/references/contract-addresses
+- CoinGecko API: https://www.coingecko.com/en/api
