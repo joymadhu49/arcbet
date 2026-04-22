@@ -3,11 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAllMarketAddresses, useMarketData } from "@/hooks/useMarkets";
 import MarketCard from "@/components/MarketCard";
 import { CATEGORIES, Category } from "@/lib/constants";
-import { Search } from "lucide-react";
-import { TRACKED_COINS, formatUsd, type PriceMap, type CoinId } from "@/lib/coingecko";
 import { usePrices } from "@/components/PriceProvider";
 import { parseCryptoDescription } from "@/lib/cryptoMarkets";
-import { formatUSDC } from "@/lib/utils";
+import { fmtUSDCCompact } from "@/lib/utils";
 import { MarketData } from "@/types";
 
 type SortKey = "trending" | "new" | "closing";
@@ -28,11 +26,6 @@ function MarketLoader({
   onLoad: (addr: `0x${string}`, entry: MarketEntry | null) => void;
 }) {
   const { market, yesOdds, noOdds, totalPool, isLoading } = useMarketData(address);
-
-  // Fingerprint the data with primitives so the effect only fires when values
-  // (not object identities) actually change. wagmi returns fresh object refs on
-  // every poll, which — combined with onLoad updating parent state — would
-  // otherwise produce an infinite render loop.
   const fingerprint = market
     ? [
         market.question,
@@ -54,63 +47,20 @@ function MarketLoader({
   return null;
 }
 
-function PriceTicker({ prices, loading }: { prices: PriceMap | null; loading: boolean }) {
-  return (
-    <div className="border-y border-[#1f2630] bg-[#0b0e12]">
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-5 overflow-x-auto no-scrollbar py-2 text-[11.5px]">
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[#6b7280]">
-            Spot
-          </span>
-          {TRACKED_COINS.map((c) => {
-            const price = prices?.[c.id as CoinId]?.usd;
-            return (
-              <div key={c.id} className="flex items-center gap-1.5 shrink-0">
-                <span
-                  className="h-4 w-4 rounded-sm flex items-center justify-center text-[9px] font-bold"
-                  style={{ background: `${c.color}22`, color: c.color }}
-                >
-                  {c.symbol[0]}
-                </span>
-                <span className="font-semibold text-[#f3f4f6]">{c.symbol}</span>
-                {price !== undefined ? (
-                  <span className="font-mono tabular text-[#8b96a5]">{formatUsd(price)}</span>
-                ) : loading ? (
-                  <span className="skeleton inline-block h-3 w-12 rounded-sm" />
-                ) : (
-                  <span className="font-mono text-[#3a4250]">—</span>
-                )}
-              </div>
-            );
-          })}
-          <div className="ml-auto shrink-0 flex items-center gap-1.5 text-[#6b7280]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e] animate-live" />
-            <span>CoinGecko · 30s</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category>("All");
   const [sort, setSort] = useState<SortKey>("trending");
   const [search, setSearch] = useState("");
-  const { prices, loading: pricesLoading } = usePrices();
+  const { prices } = usePrices();
   const { data: addresses, isLoading } = useAllMarketAddresses();
 
-  // Keep a map of loaded market entries so we can compute totals + sort.
   const [entries, setEntries] = useState<Record<string, MarketEntry | null>>({});
 
   const handleLoad = useCallback((addr: `0x${string}`, entry: MarketEntry | null) => {
     setEntries((prev) => {
       const existing = prev[addr];
-      // Both null → no-op
       if (!existing && !entry) return prev;
-      // One null, the other not → change
       if (!existing || !entry) return { ...prev, [addr]: entry };
-      // Both present → shallow value compare on the fields we actually use
       if (
         existing.totalPool === entry.totalPool &&
         existing.yesOdds === entry.yesOdds &&
@@ -133,19 +83,22 @@ export default function Home() {
     [entries, addrList],
   );
 
-  // Filtered & sorted
   const visible = useMemo(() => {
     let list = loadedEntries;
     if (activeCategory !== "All") list = list.filter((e) => e.market.category === activeCategory);
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter((e) => e.market.question.toLowerCase().includes(q));
+      list = list.filter(
+        (e) =>
+          e.market.question.toLowerCase().includes(q) ||
+          e.market.category.toLowerCase().includes(q) ||
+          e.address.toLowerCase().includes(q),
+      );
     }
     const sorted = [...list];
     if (sort === "trending") {
       sorted.sort((a, b) => Number((b.totalPool ?? 0n) - (a.totalPool ?? 0n)));
     } else if (sort === "new") {
-      // addrList is already reversed (newest first); keep original index order
       const idx = new Map(addrList.map((a, i) => [a, i]));
       sorted.sort((a, b) => (idx.get(a.address)! - idx.get(b.address)!));
     } else if (sort === "closing") {
@@ -154,7 +107,6 @@ export default function Home() {
     return sorted;
   }, [loadedEntries, activeCategory, search, sort, addrList]);
 
-  // KPIs across ALL loaded entries (not filtered) — these are testnet-wide
   const totalVolume = useMemo(
     () => loadedEntries.reduce((acc, e) => acc + (e.totalPool ?? 0n), 0n),
     [loadedEntries],
@@ -166,141 +118,90 @@ export default function Home() {
 
   return (
     <>
-      {/* Mount loaders for each address so we collect data for KPIs + sort */}
       {addrList.map((a) => (
         <MarketLoader key={a} address={a} onLoad={handleLoad} />
       ))}
 
-      {/* Ticker */}
-      <PriceTicker prices={prices} loading={pricesLoading} />
-
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-8 pb-6">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="rounded-[2rem] border border-[#1f2630] bg-[#111b26]/95 p-8 shadow-[0_30px_80px_-60px_rgba(0,0,0,0.75)]">
-            <div className="inline-flex rounded-full border border-[#1f2630] bg-[#0b1522] px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-[#6b7280]">
-              Prediction markets
-            </div>
-            <h1 className="mt-4 text-4xl sm:text-5xl font-semibold tracking-tight text-[#f3f4f6]">
-              Trade daily markets with live pricing.
-            </h1>
-            <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[#cbd5e1]/90">
-              Discover testnet markets settled in USDC on Arc. Browse trending questions, filter by category, and bet from one secure wallet connection.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <div className="rounded-2xl border border-[#1f2630] bg-[#0b1522] px-4 py-3 text-sm text-[#f3f4f6]">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#6b7280]">Markets</div>
-                <div className="mt-2 text-2xl font-semibold">{addrList.length}</div>
-              </div>
-              <div className="rounded-2xl border border-[#1f2630] bg-[#0b1522] px-4 py-3 text-sm text-[#f3f4f6]">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#6b7280]">Open</div>
-                <div className="mt-2 text-2xl font-semibold">{openMarkets}</div>
-              </div>
-              <div className="rounded-2xl border border-[#1f2630] bg-[#0b1522] px-4 py-3 text-sm text-[#f3f4f6]">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#6b7280]">Volume</div>
-                <div className="mt-2 text-2xl font-semibold">{formatUSDC(totalVolume)}</div>
-              </div>
-            </div>
+      {/* Search header */}
+      <div className="border-b border-[#1f2630] px-4 sm:px-6 lg:px-8 pt-7 pb-5">
+        <div className="flex items-baseline gap-[14px] mb-[18px]">
+          <h1 className="m-0 text-[22px] font-semibold tracking-[-0.4px] text-[#f3f4f6]">Markets</h1>
+          <div className="mono label text-[#6b7280]">
+            {openMarkets} active · {fmtUSDCCompact(totalVolume)} volume
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[1.5rem] border border-[#1f2630] bg-[#0f1726] p-4 text-sm">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-[#6b7280]">Trending</div>
-              <div className="mt-3 text-3xl font-semibold text-[#f3f4f6]">Top</div>
-            </div>
-            <div className="rounded-[1.5rem] border border-[#1f2630] bg-[#0f1726] p-4 text-sm">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-[#6b7280]">Settlement</div>
-              <div className="mt-3 text-3xl font-semibold text-[#f3f4f6]">USDC</div>
-            </div>
-            <div className="rounded-[1.5rem] border border-[#1f2630] bg-[#0f1726] p-4 text-sm">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-[#6b7280]">Network</div>
-              <div className="mt-3 text-3xl font-semibold text-[#f3f4f6]">Arc</div>
-            </div>
+        </div>
+        <div className="flex gap-3 items-center">
+          <div className="flex-1 flex items-center gap-[10px] bg-[#131820] border border-[#1f2630] px-3 py-2 rounded-[4px]">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#6b7280" strokeWidth="1.5" aria-hidden>
+              <circle cx="6" cy="6" r="4.5" />
+              <path d="M9.5 9.5 L13 13" />
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search markets, categories, addresses…"
+              className="flex-1 bg-transparent border-none outline-none text-[#f3f4f6] text-[13px]"
+            />
+            <span className="mono text-[10px] text-[#6b7280] border border-[#1f2630] px-[5px] py-[1px] rounded-[2px] tracking-[0.04em]">
+              ⌘K
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Sticky sub-nav: category tabs + search + sort */}
-      <div className="sticky top-16 z-40 border-b border-[#1f2630] bg-[#0b0e12]/95 backdrop-blur">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-6 h-12">
-            <div className="flex items-center gap-5 overflow-x-auto no-scrollbar flex-1">
-              {CATEGORIES.map((cat) => {
-                const active = activeCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`relative h-12 flex items-center shrink-0 text-[13px] transition-colors ${
-                      active ? "text-[#f3f4f6]" : "text-[#8b96a5] hover:text-[#f3f4f6]"
-                    }`}
-                  >
-                    {cat}
-                    {active && (
-                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2d9cdb]" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#3a4250]" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search markets"
-                  className="w-56 rounded-md border border-[#1f2630] bg-[#131820] py-1.5 pl-8 pr-2.5 text-[12.5px] text-[#f3f4f6] placeholder-[#3a4250] focus:border-[#2d9cdb] focus:outline-none"
-                />
-              </div>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                className="rounded-md border border-[#1f2630] bg-[#131820] py-1.5 px-2 text-[12.5px] text-[#f3f4f6] focus:border-[#2d9cdb] focus:outline-none cursor-pointer"
-              >
-                <option value="trending">Trending</option>
-                <option value="new">New</option>
-                <option value="closing">Closing soon</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile search */}
-      <div className="sm:hidden mx-auto max-w-[1400px] px-4 pt-3">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#3a4250]" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search markets"
-            className="w-full rounded-md border border-[#1f2630] bg-[#131820] py-2 pl-8 pr-2.5 text-[13px] text-[#f3f4f6] placeholder-[#3a4250] focus:border-[#2d9cdb] focus:outline-none"
-          />
-        </div>
+      {/* Filter bar */}
+      <div className="border-b border-[#1f2630] px-4 sm:px-6 lg:px-8 h-[48px] flex items-center gap-[6px] sticky top-[86px] z-30 bg-[#0b0e12] overflow-x-auto no-scrollbar">
+        {CATEGORIES.map((c) => {
+          const active = activeCategory === c;
+          return (
+            <button
+              key={c}
+              onClick={() => setActiveCategory(c)}
+              className="px-[11px] py-[5px] rounded-[3px] text-[12px] font-medium shrink-0 cursor-pointer transition-colors"
+              style={{
+                background: active ? "#1f2630" : "transparent",
+                border: `1px solid ${active ? "#2a3340" : "transparent"}`,
+                color: active ? "#f3f4f6" : "#8b96a5",
+              }}
+            >
+              {c}
+            </button>
+          );
+        })}
+        <div className="flex-1" />
+        <span className="mono label text-[#6b7280] hidden sm:inline">Sort</span>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          className="bg-[#131820] border border-[#1f2630] text-[#f3f4f6] px-[10px] py-[5px] rounded-[3px] text-[12px] cursor-pointer outline-none"
+        >
+          <option value="trending">24h Volume</option>
+          <option value="new">New</option>
+          <option value="closing">Closing soon</option>
+        </select>
       </div>
 
       {/* Grid */}
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+      <div className="px-4 sm:px-6 lg:px-8 py-7">
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-44 rounded-lg border border-[#1f2630] skeleton" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[14px]">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="h-56 rounded-[4px] border border-[#1f2630] skeleton" />
             ))}
           </div>
         ) : !addresses || addresses.length === 0 ? (
-          <div className="border border-dashed border-[#1f2630] rounded-lg py-20 text-center">
+          <div className="border border-dashed border-[#1f2630] rounded-[4px] py-20 text-center">
             <div className="text-[14px] font-medium text-[#f3f4f6]">No markets yet</div>
             <p className="mt-1 text-[12.5px] text-[#6b7280]">
               Deploy contracts and launch the first daily batch from the admin panel.
             </p>
           </div>
         ) : visible.length === 0 && loadedEntries.length === addrList.length ? (
-          <div className="border border-dashed border-[#1f2630] rounded-lg py-16 text-center text-[12.5px] text-[#6b7280]">
+          <div className="border border-dashed border-[#1f2630] rounded-[4px] py-16 text-center text-[12.5px] text-[#6b7280]">
             No markets match your filters.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[14px]">
             {visible.map((e) => {
               const cryptoMeta = parseCryptoDescription(e.market.description);
               const livePrice = cryptoMeta ? prices?.[cryptoMeta.coin]?.usd : undefined;
@@ -315,11 +216,10 @@ export default function Home() {
                 />
               );
             })}
-            {/* Show skeletons for addresses still loading */}
             {addrList.length > loadedEntries.length &&
-              Array.from({ length: Math.min(4, addrList.length - loadedEntries.length) }).map(
+              Array.from({ length: Math.min(3, addrList.length - loadedEntries.length) }).map(
                 (_, i) => (
-                  <div key={`skel-${i}`} className="h-44 rounded-lg border border-[#1f2630] skeleton" />
+                  <div key={`skel-${i}`} className="h-56 rounded-[4px] border border-[#1f2630] skeleton" />
                 ),
               )}
           </div>

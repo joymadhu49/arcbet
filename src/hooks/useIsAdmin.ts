@@ -9,5 +9,6 @@ import { ADMIN_ADDRESS } from "@/lib/constants";
 export function useIsAdmin() {
   const { address, isConnected } = useAccount();
   if (!isConnected || !address) return false;
+  if (!ADMIN_ADDRESS) return false;
   return address.toLowerCase() === ADMIN_ADDRESS;
 }

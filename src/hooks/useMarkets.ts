@@ -4,6 +4,17 @@ import { FACTORY_ADDRESS } from "@/lib/constants";
 import { MARKET_FACTORY_ABI, PREDICTION_MARKET_ABI } from "@/lib/abi";
 import { MarketData, Outcome } from "@/types";
 
+type RawMarket = {
+  question: string;
+  description: string;
+  category: string;
+  imageUrl: string;
+  resolutionTime: bigint;
+  seedLiquidity: bigint;
+  outcome: number;
+  resolved: boolean;
+};
+
 const OUTCOME_MAP: Record<number, Outcome> = {
   0: "UNRESOLVED",
   1: "YES",
@@ -26,13 +37,18 @@ export function useMarketData(address: `0x${string}`) {
       { address, abi: PREDICTION_MARKET_ABI, functionName: "yesOdds" },
       { address, abi: PREDICTION_MARKET_ABI, functionName: "noOdds" },
       { address, abi: PREDICTION_MARKET_ABI, functionName: "totalPool" },
+      { address, abi: PREDICTION_MARKET_ABI, functionName: "yesReserve" },
+      { address, abi: PREDICTION_MARKET_ABI, functionName: "noReserve" },
     ],
     query: {
-      refetchInterval: false, // Disable polling to reduce RPC calls and lag
+      refetchInterval: false,
     },
   });
 
-  const raw = data?.[0]?.result as any;
+  const raw = data?.[0]?.result as RawMarket | undefined;
+  const yesReserve = data?.[4]?.result as bigint | undefined;
+  const noReserve  = data?.[5]?.result as bigint | undefined;
+
   const market: MarketData | undefined = raw
     ? {
         address,
@@ -41,8 +57,9 @@ export function useMarketData(address: `0x${string}`) {
         category:       raw.category,
         imageUrl:       raw.imageUrl,
         resolutionTime: Number(raw.resolutionTime),
-        totalYes:       raw.totalYes,
-        totalNo:        raw.totalNo,
+        seedLiquidity:  raw.seedLiquidity,
+        yesReserve:     yesReserve ?? 0n,
+        noReserve:      noReserve  ?? 0n,
         outcome:        OUTCOME_MAP[raw.outcome] ?? "UNRESOLVED",
         resolved:       raw.resolved,
       }
@@ -50,9 +67,11 @@ export function useMarketData(address: `0x${string}`) {
 
   return {
     market,
-    yesOdds:   data?.[1]?.result as bigint | undefined,
-    noOdds:    data?.[2]?.result as bigint | undefined,
-    totalPool: data?.[3]?.result as bigint | undefined,
+    yesOdds:    data?.[1]?.result as bigint | undefined,
+    noOdds:     data?.[2]?.result as bigint | undefined,
+    totalPool:  data?.[3]?.result as bigint | undefined,
+    yesReserve,
+    noReserve,
     isLoading,
     error,
     refetch,
@@ -76,5 +95,33 @@ export function usePreviewPayout(marketAddress: `0x${string}`, userAddress?: `0x
     functionName: "previewPayout",
     args: userAddress ? [userAddress] : undefined,
     query: { enabled: !!userAddress },
+  });
+}
+
+export function usePreviewBuy(
+  marketAddress: `0x${string}`,
+  isYes: boolean,
+  amountIn: bigint | undefined,
+) {
+  return useReadContract({
+    address: marketAddress,
+    abi: PREDICTION_MARKET_ABI,
+    functionName: "previewBuy",
+    args: amountIn ? [isYes, amountIn] : undefined,
+    query: { enabled: amountIn !== undefined && amountIn > 0n },
+  });
+}
+
+export function usePreviewSell(
+  marketAddress: `0x${string}`,
+  isYes: boolean,
+  sharesIn: bigint | undefined,
+) {
+  return useReadContract({
+    address: marketAddress,
+    abi: PREDICTION_MARKET_ABI,
+    functionName: "previewSell",
+    args: sharesIn ? [isYes, sharesIn] : undefined,
+    query: { enabled: sharesIn !== undefined && sharesIn > 0n },
   });
 }

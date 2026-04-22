@@ -36,12 +36,12 @@ export const PLATFORM_FEE_BPS = 150; // 1.5% platform fee, routed on-chain via T
 /**
  * Admin wallet — only this address sees the Admin nav link & can access /admin.
  * Client-side gate (UX); on-chain authority is still enforced by MarketFactory.owner.
- * Baked in as fallback so the gate works even without env wiring.
+ * MUST be set via NEXT_PUBLIC_ADMIN_ADDRESS; no fallback so prod can't silently
+ * fall back to a dev wallet if the env is misconfigured.
  */
 export const ADMIN_ADDRESS = (
-  (process.env.NEXT_PUBLIC_ADMIN_ADDRESS as `0x${string}` | undefined) ||
-  "0xE97ca2E70c7a5a745e60DA3b7D793f962cac5E51"
-).toLowerCase() as `0x${string}`;
+  process.env.NEXT_PUBLIC_ADMIN_ADDRESS ?? ""
+).toLowerCase() as `0x${string}` | "";
 
 export const MARKET_STATUS = {
   OPEN: "open",

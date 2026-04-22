@@ -1,231 +1,432 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { useWriteContract } from "wagmi";
-import { toast } from "sonner";
+
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import {
-  Shield, Plus, CheckCircle, XCircle, Loader2, Zap, RefreshCw,
-  Flame, LineChart, Lock,
+  ArrowRight,
+  BarChart3,
+  CheckCircle,
+  Clock3,
+  Copy,
+  ExternalLink,
+  Flame,
+  Landmark,
+  Loader2,
+  Lock,
+  Plus,
+  RefreshCw,
+  Shield,
+  Wallet,
+  XCircle,
+  Zap,
 } from "lucide-react";
 
-import { FACTORY_ADDRESS } from "@/lib/constants";
-import { MARKET_FACTORY_ABI } from "@/lib/abi";
-import { useAllMarketAddresses, useMarketData } from "@/hooks/useMarkets";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { formatUSDC, timeLeft } from "@/lib/utils";
-import { TRACKED_COINS, formatUsd, type PriceMap } from "@/lib/coingecko";
-import { usePrices } from "@/components/PriceProvider";
-import {
-  buildDailyMarket, parseCryptoDescription, buildCryptoQuestion,
-} from "@/lib/cryptoMarkets";
 import { AiMarketCreator } from "@/components/AiMarketCreator";
+import NetworkGate, { useChainGate } from "@/components/NetworkGate";
+import TxBanner from "@/components/TxBanner";
+import { usePrices } from "@/components/PriceProvider";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useAllMarketAddresses, useMarketData } from "@/hooks/useMarkets";
+import { ERC20_ABI, MARKET_FACTORY_ABI } from "@/lib/abi";
+import { arcTestnet } from "@/lib/chains";
+import { TRACKED_COINS, formatUsd, type PriceMap } from "@/lib/coingecko";
+import {
+  FACTORY_ADDRESS,
+  PLATFORM_FEE_BPS,
+  TREASURY_ADDRESS,
+  USDC_ADDRESS,
+} from "@/lib/constants";
+import {
+  buildCryptoQuestion,
+  buildDailyMarket,
+  parseCryptoDescription,
+} from "@/lib/cryptoMarkets";
+import { txErrorMessage } from "@/lib/errors";
+import { fmtUSDCCompact, shortenAddress } from "@/lib/utils";
+import type { MarketData } from "@/types";
 
-// ───────────────────────── Auto-resolve card ─────────────────────────
-function ResolveRow({
+type LoadedMarketEntry = {
+  address: `0x${string}`;
+  market: MarketData;
+  totalPool: bigint;
+};
+
+const CAT_COLOR: Record<string, string> = {
+  Crypto: "#3b82f6",
+  Sports: "#f59e0b",
+  Tech: "#22c55e",
+  Politics: "#a855f7",
+  Economy: "#2d9cdb",
+  Entertainment: "#ef4444",
+};
+
+function catColor(c: string) {
+  return CAT_COLOR[c] ?? "#8b96a5";
+}
+
+function pct(n: number) {
+  return `${n.toFixed(1)}%`;
+}
+
+function clamp(n: number) {
+  return Math.max(0, Math.min(100, n));
+}
+
+function windowLabel(d: Date) {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(d);
+}
+
+function timeLeftShort(sec: number): string {
+  const diff = sec * 1000 - Date.now();
+  if (diff <= 0) return "Overdue";
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h >= 24) {
+    const d = Math.floor(h / 24);
+    return `${d}d ${h % 24}h`;
+  }
+  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m`;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Market loader (unchanged infra; fingerprinted to avoid infinite loops)
+// ──────────────────────────────────────────────────────────────────────────
+function MarketSnapshotLoader({
+  address,
+  onLoad,
+}: {
+  address: `0x${string}`;
+  onLoad: (address: `0x${string}`, entry: LoadedMarketEntry | null) => void;
+}) {
+  const { market, totalPool, isLoading } = useMarketData(address);
+
+  const fingerprint = market
+    ? [
+        market.question,
+        market.category,
+        market.resolved ? 1 : 0,
+        market.outcome,
+        market.resolutionTime,
+        market.yesReserve.toString(),
+        market.noReserve.toString(),
+        (totalPool ?? 0n).toString(),
+      ].join("|")
+    : "";
+
+  useEffect(() => {
+    if (isLoading) return;
+    onLoad(
+      address,
+      market
+        ? { address, market, totalPool: totalPool ?? market.yesReserve + market.noReserve }
+        : null,
+    );
+  }, [address, fingerprint, isLoading, market, onLoad, totalPool]);
+
+  return null;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Metric card
+// ──────────────────────────────────────────────────────────────────────────
+function Metric({
+  icon: Icon,
+  accent,
+  label,
+  value,
+  sub,
+}: {
+  icon: typeof Wallet;
+  accent: string;
+  label: string;
+  value: string;
+  sub: string;
+}) {
+  return (
+    <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <Icon className="h-4 w-4" style={{ color: accent }} />
+      </div>
+      <div className="label mb-2">{label}</div>
+      <div className="mono text-[24px] font-semibold tracking-[-0.5px] text-[#f3f4f6] leading-[1.1]">
+        {value}
+      </div>
+      <div className="mono text-[11px] text-[#8b96a5] mt-[6px]">{sub}</div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Ledger row
+// ──────────────────────────────────────────────────────────────────────────
+function LedgerRow({ entry, nowSec }: { entry: LoadedMarketEntry; nowSec: number }) {
+  const fee = (entry.totalPool * BigInt(PLATFORM_FEE_BPS)) / 10000n;
+  const status = entry.market.resolved
+    ? entry.market.outcome === "CANCELLED"
+      ? "Cancelled"
+      : "Resolved"
+    : entry.market.resolutionTime <= nowSec
+      ? "Pending"
+      : "Open";
+  const statusColor =
+    status === "Open" ? "#22c55e" : status === "Pending" ? "#f59e0b" : "#6b7280";
+
+  return (
+    <div
+      className="grid items-center gap-[10px] px-6 py-[14px] border-t border-[#1f2630]"
+      style={{ gridTemplateColumns: "1fr 100px 90px 100px 100px" }}
+    >
+      <Link
+        href={`/market/${entry.address}`}
+        className="text-[13px] text-[#f3f4f6] leading-[1.4] pr-[10px] line-clamp-2 hover:text-[#2d9cdb] transition-colors"
+        style={{ textWrap: "balance" }}
+      >
+        {entry.market.question}
+      </Link>
+      <div className="flex items-center gap-[7px]">
+        <div className="w-[6px] h-[6px] rounded-full" style={{ background: catColor(entry.market.category) }} />
+        <span className="text-[12px] text-[#f3f4f6]">{entry.market.category}</span>
+      </div>
+      <div className="flex items-center gap-[6px]">
+        <div className="w-[6px] h-[6px] rounded-full" style={{ background: statusColor }} />
+        <span className="text-[12px] text-[#f3f4f6]">{status}</span>
+      </div>
+      <div className="mono text-[12px] text-[#f3f4f6] text-right">{fmtUSDCCompact(entry.totalPool)}</div>
+      <div className="mono text-[12px] text-[#8b96a5] text-right">{fmtUSDCCompact(fee)}</div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Queue card (per market, with auto-resolve for crypto markets)
+// ──────────────────────────────────────────────────────────────────────────
+function QueueCard({
   address,
   prices,
   onDone,
+  disabled,
+  nowSec,
 }: {
   address: `0x${string}`;
   prices: PriceMap | null;
   onDone: () => void;
+  disabled: boolean;
+  nowSec: number;
 }) {
   const { market, refetch } = useMarketData(address);
+  const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const [pending, setPending] = useState<"yes" | "no" | "cancel" | "auto" | null>(null);
 
   if (!market) return null;
   const meta = parseCryptoDescription(market.description);
-  const nowSec = Math.floor(Date.now() / 1000);
   const due = market.resolutionTime <= nowSec;
-
   const livePrice = meta && prices?.[meta.coin]?.usd;
   const predictedYes = meta && livePrice ? livePrice > meta.targetUsd : undefined;
+  const pool = market.yesReserve + market.noReserve;
 
-  async function resolve(yesWon: boolean) {
-    setPending(yesWon ? "yes" : "no");
+  async function send(label: "yes" | "no" | "cancel" | "auto", run: () => Promise<`0x${string}`>) {
+    setPending(label);
+    const id = `q-${label}-${address}`;
     try {
-      toast.loading("Resolving…", { id: "resolve" });
-      await writeContractAsync({
-        address: FACTORY_ADDRESS,
-        abi: MARKET_FACTORY_ABI,
-        functionName: "resolveMarket",
-        args: [address, yesWon],
-      });
-      toast.success(`Resolved: ${yesWon ? "YES" : "NO"} won`, { id: "resolve" });
+      toast.loading("Sending…", { id });
+      const hash = await run();
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      toast.success("Confirmed on-chain", { id });
       refetch();
       onDone();
-    } catch (e: any) {
-      toast.error(e?.shortMessage ?? "Failed", { id: "resolve" });
-    } finally {
-      setPending(null);
-    }
-  }
-
-  async function cancel() {
-    setPending("cancel");
-    try {
-      toast.loading("Cancelling…", { id: "cancel" });
-      await writeContractAsync({
-        address: FACTORY_ADDRESS,
-        abi: MARKET_FACTORY_ABI,
-        functionName: "cancelMarket",
-        args: [address],
-      });
-      toast.success("Cancelled", { id: "cancel" });
-      refetch();
-      onDone();
-    } catch (e: any) {
-      toast.error(e?.shortMessage ?? "Failed", { id: "cancel" });
-    } finally {
-      setPending(null);
-    }
-  }
-
-  async function autoResolve() {
-    if (predictedYes === undefined) return;
-    setPending("auto");
-    try {
-      toast.loading(`Auto-resolving → ${predictedYes ? "YES" : "NO"}…`, { id: "auto" });
-      await writeContractAsync({
-        address: FACTORY_ADDRESS,
-        abi: MARKET_FACTORY_ABI,
-        functionName: "resolveMarket",
-        args: [address, predictedYes],
-      });
-      toast.success(`Auto-resolved: ${predictedYes ? "YES" : "NO"}`, { id: "auto" });
-      refetch();
-      onDone();
-    } catch (e: any) {
-      toast.error(e?.shortMessage ?? "Failed", { id: "auto" });
+    } catch (e) {
+      toast.error(txErrorMessage(e), { id });
     } finally {
       setPending(null);
     }
   }
 
   return (
-    <div className="rounded-2xl border border-[#262d39] bg-[#151a21] p-4">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <Link
-              href={`/market/${address}`}
-              className="text-sm font-semibold text-[#f3f4f6] hover:text-[#3b82f6] transition-colors line-clamp-1"
-            >
-              {market.question}
-            </Link>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
-              <span className="rounded bg-[#262d39] px-1.5 py-0.5 text-[#9aa5b1]">{market.category}</span>
-              <span>{timeLeft(market.resolutionTime)}</span>
-              <span>·</span>
-              <span>Vol: {formatUSDC(market.totalYes + market.totalNo)}</span>
-              {market.resolved && (
-                <><span>·</span><span className="text-[#f59e0b]">Resolved: {market.outcome}</span></>
-              )}
-            </div>
-          </div>
-          {due && !market.resolved && (
-            <span className="rounded-full bg-[#f59e0b]/15 px-2 py-0.5 text-[10px] font-semibold text-[#f59e0b]">
-              DUE
-            </span>
-          )}
-        </div>
-
-        {/* Crypto-market auto-resolve strip */}
-        {meta && !market.resolved && (
-          <div className="flex items-center justify-between rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2 text-xs">
-            <div className="flex items-center gap-2">
-              <LineChart className="h-3.5 w-3.5 text-[#a855f7]" />
-              <span className="text-[#9aa5b1]">
-                Target <span className="text-[#f3f4f6] font-mono">{formatUsd(meta.targetUsd)}</span>
-                <span className="mx-1.5 text-[#363d4b]">·</span>
-                Live <span className="font-mono" style={{ color: predictedYes === undefined ? "#6b7280" : predictedYes ? "#22c55e" : "#ef4444" }}>
-                  {livePrice ? formatUsd(livePrice) : "loading…"}
-                </span>
-              </span>
-            </div>
-            <button
-              onClick={autoResolve}
-              disabled={!!pending || predictedYes === undefined}
-              className="flex items-center gap-1 rounded-lg bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-2 py-1 text-[#3b82f6] hover:bg-[#3b82f6]/20 disabled:opacity-40 transition-colors"
-            >
-              {pending === "auto" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-              Auto-resolve
-            </button>
-          </div>
+    <div className="rounded-[4px] border border-[#1f2630] bg-[#0b0e12] p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <Link
+          href={`/market/${address}`}
+          className="text-[13px] font-medium text-[#f3f4f6] leading-[1.4] flex-1 line-clamp-2 hover:text-[#2d9cdb] transition-colors"
+          style={{ textWrap: "balance" }}
+        >
+          {market.question}
+        </Link>
+        {due && !market.resolved && (
+          <span className="mono text-[9px] font-bold text-[#f59e0b] shrink-0" style={{ letterSpacing: "0.16em" }}>
+            ● DUE
+          </span>
         )}
-
-        {!market.resolved && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => resolve(true)}
-              disabled={!!pending}
-              className="flex items-center gap-1.5 rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/20 px-3 py-1.5 text-xs font-semibold text-[#22c55e] hover:bg-[#22c55e]/20 disabled:opacity-50 transition-colors"
-            >
-              {pending === "yes" ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-              YES Won
-            </button>
-            <button
-              onClick={() => resolve(false)}
-              disabled={!!pending}
-              className="flex items-center gap-1.5 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/20 px-3 py-1.5 text-xs font-semibold text-[#ef4444] hover:bg-[#ef4444]/20 disabled:opacity-50 transition-colors"
-            >
-              {pending === "no" ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-              NO Won
-            </button>
-            <button
-              onClick={cancel}
-              disabled={!!pending}
-              className="flex items-center gap-1.5 rounded-xl border border-[#262d39] px-3 py-1.5 text-xs text-[#6b7280] hover:text-[#9aa5b1] disabled:opacity-50 transition-colors"
-            >
-              {pending === "cancel" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-              Cancel
-            </button>
-          </div>
+        {market.resolved && (
+          <span className="mono text-[9px] font-bold text-[#8b96a5] shrink-0" style={{ letterSpacing: "0.16em" }}>
+            ● {market.outcome}
+          </span>
         )}
       </div>
+
+      <div className="flex items-center gap-4 mb-3 flex-wrap">
+        <div className="flex items-center gap-[7px]">
+          <div className="w-[6px] h-[6px] rounded-full" style={{ background: catColor(market.category) }} />
+          <span className="text-[12px] text-[#f3f4f6]">{market.category}</span>
+        </div>
+        <div className="mono text-[11px] text-[#8b96a5] flex items-center gap-[5px]">
+          <Clock3 className="h-[11px] w-[11px]" />
+          {timeLeftShort(market.resolutionTime)}
+        </div>
+        <div className="mono text-[11px] text-[#8b96a5] ml-auto">{fmtUSDCCompact(pool)} pool</div>
+      </div>
+
+      {meta && !market.resolved && (
+        <div className="flex items-center justify-between gap-3 py-[10px] px-3 mb-3 border-t border-b border-[#1f2630]">
+          <div className="flex items-baseline gap-2">
+            <span className="mono label">Live</span>
+            <span className="mono text-[13px] font-semibold text-[#f3f4f6]">
+              {livePrice ? formatUsd(livePrice) : "—"}
+            </span>
+            <ArrowRight className="h-[10px] w-[10px] text-[#6b7280]" />
+            <span
+              className="mono text-[13px] font-semibold"
+              style={{ color: predictedYes === undefined ? "#6b7280" : predictedYes ? "#22c55e" : "#ef4444" }}
+            >
+              {formatUsd(meta.targetUsd)}
+            </span>
+          </div>
+          <button
+            onClick={() =>
+              send("auto", () =>
+                writeContractAsync({
+                  address: FACTORY_ADDRESS,
+                  abi: MARKET_FACTORY_ABI,
+                  functionName: "resolveMarket",
+                  args: [address, !!predictedYes],
+                }),
+              )
+            }
+            disabled={!!pending || predictedYes === undefined || disabled}
+            className="flex items-center gap-1 text-[11px] font-semibold text-[#a855f7] hover:opacity-80 disabled:opacity-40"
+          >
+            {pending === "auto" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+            Auto-resolve
+          </button>
+        </div>
+      )}
+
+      {!market.resolved && (
+        <div className="grid grid-cols-3 gap-[6px]">
+          <button
+            onClick={() =>
+              send("yes", () =>
+                writeContractAsync({
+                  address: FACTORY_ADDRESS,
+                  abi: MARKET_FACTORY_ABI,
+                  functionName: "resolveMarket",
+                  args: [address, true],
+                }),
+              )
+            }
+            disabled={!!pending || disabled}
+            className="flex items-center justify-center gap-1 rounded-[3px] border border-[#22c55e]/35 bg-transparent py-[8px] text-[11px] font-semibold text-[#22c55e] transition-colors hover:bg-[#22c55e]/10 disabled:opacity-40"
+            style={{ letterSpacing: "0.08em" }}
+          >
+            {pending === "yes" ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+            YES won
+          </button>
+          <button
+            onClick={() =>
+              send("no", () =>
+                writeContractAsync({
+                  address: FACTORY_ADDRESS,
+                  abi: MARKET_FACTORY_ABI,
+                  functionName: "resolveMarket",
+                  args: [address, false],
+                }),
+              )
+            }
+            disabled={!!pending || disabled}
+            className="flex items-center justify-center gap-1 rounded-[3px] border border-[#ef4444]/35 bg-transparent py-[8px] text-[11px] font-semibold text-[#ef4444] transition-colors hover:bg-[#ef4444]/10 disabled:opacity-40"
+            style={{ letterSpacing: "0.08em" }}
+          >
+            {pending === "no" ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+            NO won
+          </button>
+          <button
+            onClick={() =>
+              send("cancel", () =>
+                writeContractAsync({
+                  address: FACTORY_ADDRESS,
+                  abi: MARKET_FACTORY_ABI,
+                  functionName: "cancelMarket",
+                  args: [address],
+                }),
+              )
+            }
+            disabled={!!pending || disabled}
+            className="flex items-center justify-center gap-1 rounded-[3px] border border-[#1f2630] bg-transparent py-[8px] text-[11px] font-semibold text-[#8b96a5] transition-colors hover:text-[#f3f4f6] hover:border-[#2a3340] disabled:opacity-40"
+            style={{ letterSpacing: "0.08em" }}
+          >
+            {pending === "cancel" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-// ───────────────────────── Daily creator ─────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// Daily crypto markets creator
+// ──────────────────────────────────────────────────────────────────────────
 function DailyCreator({
   prices,
   onCreated,
+  disabled,
+  onError,
 }: {
   prices: PriceMap | null;
   onCreated: () => void;
+  disabled: boolean;
+  onError: (msg: string | null) => void;
 }) {
+  const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [busy, setBusy] = useState<string | null>(null); // coin id or "all"
+  const [busy, setBusy] = useState<string | null>(null);
 
   async function createOne(coinId: (typeof TRACKED_COINS)[number]["id"]) {
+    onError(null);
     const coin = TRACKED_COINS.find((c) => c.id === coinId)!;
     const price = prices?.[coinId]?.usd;
     if (!price) {
-      toast.error("Price unavailable — refresh first");
+      const msg = "Price unavailable — refresh prices first.";
+      onError(msg);
+      toast.error(msg);
       return;
     }
     setBusy(coinId);
     try {
       const m = buildDailyMarket(coin, price);
       toast.loading(`Creating ${coin.symbol} 24h market…`, { id: `m-${coinId}` });
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: FACTORY_ADDRESS,
         abi: MARKET_FACTORY_ABI,
         functionName: "createMarket",
         args: [m.question, m.description, m.category, m.imageUrl, m.resolutionTime],
       });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success(`${coin.symbol} market created`, { id: `m-${coinId}` });
       onCreated();
-    } catch (e: any) {
-      toast.error(e?.shortMessage ?? "Failed", { id: `m-${coinId}` });
+    } catch (e) {
+      const msg = txErrorMessage(e);
+      onError(msg);
+      toast.error(msg, { id: `m-${coinId}` });
     } finally {
       setBusy(null);
     }
   }
 
   async function createAll() {
+    onError(null);
     setBusy("all");
     try {
       for (const c of TRACKED_COINS) {
@@ -233,39 +434,50 @@ function DailyCreator({
         if (!price) continue;
         const m = buildDailyMarket(c, price);
         toast.loading(`Creating ${c.symbol}…`, { id: "m-all" });
-        await writeContractAsync({
+        const hash = await writeContractAsync({
           address: FACTORY_ADDRESS,
           abi: MARKET_FACTORY_ABI,
           functionName: "createMarket",
           args: [m.question, m.description, m.category, m.imageUrl, m.resolutionTime],
         });
+        if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       }
-      toast.success("All 5 daily markets created", { id: "m-all" });
+      toast.success("All daily markets created", { id: "m-all" });
       onCreated();
-    } catch (e: any) {
-      toast.error(e?.shortMessage ?? "Batch failed", { id: "m-all" });
+    } catch (e) {
+      const msg = txErrorMessage(e);
+      onError(msg);
+      toast.error(msg, { id: "m-all" });
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <div className="rounded-2xl border border-[#262d39] bg-[#151a21] p-5">
+    <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f3f4f6]">
-          <Flame className="h-4 w-4 text-[#f59e0b]" /> Daily crypto markets (24h)
-        </h3>
+        <div>
+          <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#f3f4f6]">
+            <Flame className="h-4 w-4 text-[#f59e0b]" /> Daily crypto markets
+          </h3>
+          <div className="mono text-[11px] text-[#6b7280] mt-[3px]">
+            {TRACKED_COINS.length} above-target prompts · 24h resolve
+          </div>
+        </div>
         <button
           onClick={createAll}
-          disabled={!!busy || !prices}
-          className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-3 py-1.5 text-xs font-bold text-[#151a21] disabled:opacity-50 hover:opacity-90 transition-opacity"
+          disabled={!!busy || !prices || disabled}
+          className="flex items-center gap-1.5 rounded-[3px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-3 py-[7px] text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {busy === "all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-          Launch all 5
+          Launch all {TRACKED_COINS.length}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div
+        className="grid gap-2"
+        style={{ gridTemplateColumns: `repeat(${TRACKED_COINS.length}, minmax(0, 1fr))` }}
+      >
         {TRACKED_COINS.map((coin) => {
           const price = prices?.[coin.id]?.usd;
           const target = price ? price * 1.02 : null;
@@ -273,42 +485,44 @@ function DailyCreator({
             <button
               key={coin.id}
               onClick={() => createOne(coin.id)}
-              disabled={!!busy || !price}
-              className="group flex items-center justify-between rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2.5 text-left hover:border-[#3b82f6]/40 disabled:opacity-40 transition-colors"
+              disabled={!!busy || !price || disabled}
+              className="rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[14px] text-left transition-colors hover:border-[#2a3340] disabled:opacity-40"
             >
-              <div className="flex items-center gap-2.5">
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold"
-                  style={{ background: `${coin.color}20`, color: coin.color }}
-                >
-                  {coin.symbol[0]}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-[#f3f4f6]">{coin.symbol}</div>
-                  <div className="text-[10px] text-[#6b7280]">
-                    {price ? formatUsd(price) : "—"}
-                    {target && <span className="text-[#22c55e]"> → {formatUsd(target)}</span>}
-                  </div>
-                </div>
+              <div className="text-[12px] font-semibold text-[#f3f4f6] mb-[10px]">{coin.symbol}</div>
+              <div className="mono text-[13px] font-medium text-[#f3f4f6]">
+                {price ? formatUsd(price) : "—"}
               </div>
-              {busy === coin.id ? (
-                <Loader2 className="h-4 w-4 animate-spin text-[#3b82f6]" />
-              ) : (
-                <Plus className="h-4 w-4 text-[#363d4b] group-hover:text-[#3b82f6]" />
-              )}
+              <div className="flex items-center gap-[5px] mt-[4px]">
+                <ArrowRight className="h-[10px] w-[10px] text-[#6b7280]" />
+                <span className="mono text-[11px]" style={{ color: coin.color ?? "#a855f7" }}>
+                  {target ? formatUsd(target) : "—"}
+                </span>
+                {busy === coin.id && <Loader2 className="h-3 w-3 animate-spin text-[#3b82f6] ml-auto" />}
+              </div>
             </button>
           );
         })}
       </div>
-      <p className="mt-3 text-[10px] text-[#6b7280]">
-        Targets are set +2% above the live CoinGecko spot. Auto-resolved from CoinGecko 24 hours after creation.
+      <p className="mt-3 mono label">
+        Targets set +2% above CoinGecko spot · auto-resolvable 24h after creation
       </p>
     </div>
   );
 }
 
-// ───────────────────────── Custom creator ─────────────────────────
-function CustomCreator({ onCreated }: { onCreated: () => void }) {
+// ──────────────────────────────────────────────────────────────────────────
+// Custom market form
+// ──────────────────────────────────────────────────────────────────────────
+function CustomCreator({
+  onCreated,
+  disabled,
+  onError,
+}: {
+  onCreated: () => void;
+  disabled: boolean;
+  onError: (msg: string | null) => void;
+}) {
+  const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const [form, setForm] = useState({
     question: "",
@@ -321,107 +535,168 @@ function CustomCreator({ onCreated }: { onCreated: () => void }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    onError(null);
     setCreating(true);
     try {
       toast.loading("Creating market…", { id: "create" });
-      const resolutionTime = BigInt(Math.floor(Date.now() / 1000) + Number(form.resolutionDays) * 86400);
-      await writeContractAsync({
+      const days = Number(form.resolutionDays);
+      if (!Number.isFinite(days) || days < 1) {
+        throw new Error("Resolution must be at least 1 day in the future.");
+      }
+      const resolutionTime = BigInt(Math.floor(Date.now() / 1000) + days * 86400);
+      const hash = await writeContractAsync({
         address: FACTORY_ADDRESS,
         abi: MARKET_FACTORY_ABI,
         functionName: "createMarket",
         args: [form.question, form.description, form.category, form.imageUrl, resolutionTime],
       });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success("Market created", { id: "create" });
       setForm({ question: "", description: "", category: "Crypto", imageUrl: "", resolutionDays: "7" });
       onCreated();
-    } catch (e: any) {
-      toast.error(e?.shortMessage ?? "Failed", { id: "create" });
+    } catch (e) {
+      const msg = txErrorMessage(e);
+      onError(msg);
+      toast.error(msg, { id: "create" });
     } finally {
       setCreating(false);
     }
   }
 
+  const inputCls =
+    "w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[10px] text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none";
+
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-[#262d39] bg-[#151a21] p-5 space-y-4">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-[#f3f4f6]">
-        <Plus className="h-4 w-4" /> Custom market
-      </h3>
-      <div>
-        <label className="mb-1 block text-xs text-[#6b7280]">Question *</label>
-        <input
-          value={form.question}
-          onChange={(e) => setForm({ ...form, question: e.target.value })}
-          required
-          placeholder="Will BTC hit $200k by end of 2026?"
-          className="w-full rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2.5 text-sm text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#3b82f6] focus:outline-none"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-xs text-[#6b7280]">Description *</label>
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          required
-          rows={3}
-          placeholder="Resolution criteria…"
-          className="w-full rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2.5 text-sm text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#3b82f6] focus:outline-none resize-none"
-        />
-      </div>
+    <form onSubmit={submit} className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
+      <h3 className="text-[14px] font-semibold text-[#f3f4f6] mb-4">Custom market</h3>
       <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="mono label block mb-[6px]">Question</label>
+          <input
+            value={form.question}
+            onChange={(e) => setForm({ ...form, question: e.target.value })}
+            required
+            placeholder="Will BTC close above $200,000 on Dec 31, 2026?"
+            className={inputCls}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="mono label block mb-[6px]">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            required
+            rows={3}
+            placeholder="Resolution criteria…"
+            className={`${inputCls} resize-none`}
+          />
+        </div>
         <div>
-          <label className="mb-1 block text-xs text-[#6b7280]">Category</label>
+          <label className="mono label block mb-[6px]">Category</label>
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2.5 text-sm text-[#f3f4f6] focus:border-[#3b82f6] focus:outline-none"
+            className={inputCls}
           >
-            {["Crypto", "Sports", "Politics", "Tech", "Entertainment"].map((c) => (
-              <option key={c} value={c}>{c}</option>
+            {["Crypto", "Sports", "Politics", "Tech", "Entertainment", "Economy"].map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-[#6b7280]">Resolves in (days)</label>
+          <label className="mono label block mb-[6px]">Resolves in (days)</label>
           <input
             type="number"
             min="1"
             value={form.resolutionDays}
             onChange={(e) => setForm({ ...form, resolutionDays: e.target.value })}
-            className="w-full rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2.5 text-sm text-[#f3f4f6] focus:border-[#3b82f6] focus:outline-none"
+            className={inputCls}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="mono label block mb-[6px]">Image URL</label>
+          <input
+            value={form.imageUrl}
+            onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+            placeholder="https://…"
+            className={inputCls}
           />
         </div>
       </div>
-      <div>
-        <label className="mb-1 block text-xs text-[#6b7280]">Image URL (optional)</label>
-        <input
-          value={form.imageUrl}
-          onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-          placeholder="https://…"
-          className="w-full rounded-xl border border-[#262d39] bg-[#0b0e12] px-3 py-2.5 text-sm text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#3b82f6] focus:outline-none"
-        />
+      <div className="flex justify-end mt-4">
+        <button
+          type="submit"
+          disabled={creating || disabled}
+          className="flex items-center gap-1.5 rounded-[3px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[9px] text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {creating ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Creating…
+            </>
+          ) : (
+            <>
+              <Plus className="h-3.5 w-3.5" /> Create market
+            </>
+          )}
+        </button>
       </div>
-      <button
-        type="submit"
-        disabled={creating}
-        className="w-full rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#a855f7] py-2.5 text-sm font-bold text-[#151a21] hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {creating ? (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Creating…
-          </span>
-        ) : (
-          "Create Market"
-        )}
-      </button>
     </form>
   );
 }
 
-// ───────────────────────── Page ─────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// Page
+// ──────────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const isAdmin = useIsAdmin();
+  const { address } = useAccount();
+  const { wrongChain, isConnected } = useChainGate();
   const { data: addresses, isLoading, refetch } = useAllMarketAddresses();
   const { prices, loading: loadingPrices, error: pricesError, refresh: loadPrices } = usePrices();
+  const [bannerError, setBannerError] = useState<string | null>(null);
+  const [entries, setEntries] = useState<Record<string, LoadedMarketEntry | null>>({});
+  const [nowSec, setNowSec] = useState(0);
+  const [activeTab, setActiveTab] = useState<"overview" | "treasury" | "settlement" | "create">("overview");
+
+  const { data: onChainOwner } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: MARKET_FACTORY_ABI,
+    functionName: "owner",
+    query: {
+      enabled: !!FACTORY_ADDRESS && FACTORY_ADDRESS !== "0x0000000000000000000000000000000000000000",
+    },
+  });
+
+  const { data: onChainTreasury } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: MARKET_FACTORY_ABI,
+    functionName: "treasury",
+    query: {
+      enabled: !!FACTORY_ADDRESS && FACTORY_ADDRESS !== "0x0000000000000000000000000000000000000000",
+    },
+  });
+
+  const treasuryAddress = ((onChainTreasury as `0x${string}` | undefined) ?? TREASURY_ADDRESS) as `0x${string}`;
+
+  const { data: treasuryBalance } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [treasuryAddress],
+    query: {
+      enabled:
+        !!treasuryAddress &&
+        treasuryAddress !== "0x0000000000000000000000000000000000000000" &&
+        USDC_ADDRESS !== "0x0000000000000000000000000000000000000000",
+    },
+  });
+
+  const ownerMismatch = useMemo(() => {
+    if (!isConnected || !address || !onChainOwner) return false;
+    return (onChainOwner as string).toLowerCase() !== address.toLowerCase();
+  }, [address, isConnected, onChainOwner]);
 
   useEffect(() => {
     if (pricesError && !prices) {
@@ -429,76 +704,529 @@ export default function AdminPage() {
     }
   }, [pricesError, prices]);
 
-  // Sort: due-for-resolution first, then newest
+  useEffect(() => {
+    const syncNow = () => setNowSec(Math.floor(Date.now() / 1000));
+    syncNow();
+    const timer = window.setInterval(syncNow, 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const handleLoad = useCallback((marketAddress: `0x${string}`, entry: LoadedMarketEntry | null) => {
+    setEntries((prev) => {
+      const existing = prev[marketAddress];
+      if (!existing && !entry) return prev;
+      if (!existing || !entry) return { ...prev, [marketAddress]: entry };
+      if (
+        existing.totalPool === entry.totalPool &&
+        existing.market.question === entry.market.question &&
+        existing.market.category === entry.market.category &&
+        existing.market.resolved === entry.market.resolved &&
+        existing.market.outcome === entry.market.outcome &&
+        existing.market.resolutionTime === entry.market.resolutionTime &&
+        existing.market.yesReserve === entry.market.yesReserve &&
+        existing.market.noReserve  === entry.market.noReserve
+      ) {
+        return prev;
+      }
+      return { ...prev, [marketAddress]: entry };
+    });
+  }, []);
+
   const sortedAddrs = useMemo(() => (addresses ? [...addresses].reverse() : []), [addresses]);
+
+  const loadedEntries = useMemo(
+    () =>
+      sortedAddrs
+        .map((a) => entries[a])
+        .filter((item): item is LoadedMarketEntry => !!item),
+    [entries, sortedAddrs],
+  );
+
+  const totalVolume = useMemo(
+    () => loadedEntries.reduce((acc, e) => acc + e.totalPool, 0n),
+    [loadedEntries],
+  );
+  const openEntries = useMemo(() => loadedEntries.filter((e) => !e.market.resolved), [loadedEntries]);
+  const resolvedEntries = useMemo(() => loadedEntries.filter((e) => e.market.resolved), [loadedEntries]);
+  const dueEntries = useMemo(
+    () => loadedEntries.filter((e) => !e.market.resolved && e.market.resolutionTime <= nowSec + 86400),
+    [loadedEntries, nowSec],
+  );
+  const overdueCount = useMemo(
+    () => loadedEntries.filter((e) => !e.market.resolved && e.market.resolutionTime <= nowSec).length,
+    [loadedEntries, nowSec],
+  );
+  const openVolume = useMemo(() => openEntries.reduce((acc, e) => acc + e.totalPool, 0n), [openEntries]);
+  const estimatedFees = useMemo(() => (totalVolume * BigInt(PLATFORM_FEE_BPS)) / 10000n, [totalVolume]);
+  const largestMarket = useMemo(() => {
+    if (loadedEntries.length === 0) return null;
+    return [...loadedEntries].sort((a, b) => Number(b.totalPool - a.totalPool))[0];
+  }, [loadedEntries]);
+
+  const categoryMix = useMemo(() => {
+    const totals = new Map<string, bigint>();
+    for (const entry of loadedEntries) {
+      totals.set(entry.market.category, (totals.get(entry.market.category) ?? 0n) + entry.totalPool);
+    }
+    return [...totals.entries()].sort((a, b) => Number(b[1] - a[1])).slice(0, 4);
+  }, [loadedEntries]);
+
+  const cycleStart = new Date();
+  cycleStart.setDate(1);
+  cycleStart.setHours(0, 0, 0, 0);
+  const cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, 0);
+  const daysInCycle = cycleEnd.getDate();
+  const cycleDay = new Date().getDate();
+  const cycleProgress = (cycleDay / daysInCycle) * 100;
 
   if (!isAdmin) {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 text-center">
         <Lock className="mx-auto mb-4 h-12 w-12 text-[#363d4b]" />
-        <h2 className="mb-2 text-lg font-bold text-[#f3f4f6]">Not Found</h2>
-        <p className="text-sm text-[#6b7280]">
+        <h2 className="mb-2 text-[15px] font-semibold text-[#f3f4f6]">Not Found</h2>
+        <p className="text-[13px] text-[#8b96a5]">
           This page doesn&apos;t exist, or your wallet isn&apos;t authorised.
         </p>
       </div>
     );
   }
 
+  const writesDisabled = !isConnected || wrongChain || ownerMismatch;
+  const resolvedShare = loadedEntries.length === 0 ? 0 : (resolvedEntries.length / loadedEntries.length) * 100;
+  const feeCaptureShare = totalVolume === 0n ? 0 : (Number(estimatedFees) / Number(totalVolume)) * 100;
+  const settlementsShare = loadedEntries.length === 0 ? 0 : (dueEntries.length / loadedEntries.length) * 100;
+
+  const copyAddress = (addr: string, label: string) => {
+    navigator.clipboard.writeText(addr);
+    toast.success(`${label} copied`);
+  };
+  const explorerUrl = (addr: string) => `${arcTestnet.blockExplorers.default.url}/address/${addr}`;
+
+  const tabs: Array<typeof activeTab> = ["overview", "treasury", "settlement", "create"];
+  const onTabClick = (t: typeof activeTab) => {
+    setActiveTab(t);
+    const el = document.getElementById(`admin-${t}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ef4444]/10">
-            <Shield className="h-5 w-5 text-[#ef4444]" />
-          </div>
+    <>
+      {sortedAddrs.map((a) => (
+        <MarketSnapshotLoader key={a} address={a} onLoad={handleLoad} />
+      ))}
+
+      {/* Hero */}
+      <div className="px-4 sm:px-6 lg:px-8 pt-9 pb-6">
+        <div className="flex items-start justify-between gap-6 flex-wrap mb-5">
           <div>
-            <h1 className="text-xl font-bold text-[#f3f4f6]">Admin</h1>
-            <p className="text-xs text-[#6b7280]">Gated to owner wallet · on-chain authority enforced by MarketFactory</p>
+            <div className="flex items-center gap-[10px] mb-3">
+              <Shield className="h-[18px] w-[18px] text-[#8b96a5]" />
+              <span className="mono label">Admin · Operator only</span>
+            </div>
+            <h1 className="m-0 text-[28px] font-semibold tracking-[-0.8px] text-[#f3f4f6] mb-2">
+              Protocol operations
+            </h1>
+            <p className="m-0 text-[13.5px] leading-[1.55] text-[#8b96a5] max-w-[560px]">
+              Live treasury metrics, market exposure, pending resolutions, and creation tools.
+            </p>
+          </div>
+          <div className="flex gap-[2px] p-[3px] rounded-[4px] border border-[#1f2630] bg-[#131820]">
+            {tabs.map((t) => (
+              <button
+                key={t}
+                onClick={() => onTabClick(t)}
+                className="px-[14px] py-[7px] rounded-[3px] text-[12px] font-medium capitalize cursor-pointer transition-colors"
+                style={{
+                  background: activeTab === t ? "#1f2630" : "transparent",
+                  color: activeTab === t ? "#f3f4f6" : "#8b96a5",
+                }}
+              >
+                {t}
+              </button>
+            ))}
           </div>
         </div>
-        <button
-          onClick={loadPrices}
-          disabled={loadingPrices}
-          className="flex items-center gap-1.5 rounded-xl border border-[#262d39] bg-[#151a21] px-3 py-1.5 text-xs text-[#9aa5b1] hover:border-[#363d4b] hover:text-[#f3f4f6] transition-colors"
-        >
-          <RefreshCw className={`h-3 w-3 ${loadingPrices ? "animate-spin" : ""}`} />
-          Refresh prices
-        </button>
+        <div className="flex gap-8 pt-[18px] border-t border-[#1f2630] flex-wrap">
+          {[
+            { k: "Fee model", v: `${(PLATFORM_FEE_BPS / 100).toFixed(2)}%`, sub: "Flat · per pool" },
+            { k: "Settlement rail", v: "USDC", sub: "Arc testnet" },
+            { k: "Current cycle", v: `${windowLabel(cycleStart)} – ${windowLabel(cycleEnd)}`, sub: `Day ${cycleDay} of ${daysInCycle}` },
+          ].map((i) => (
+            <div key={i.k} className="flex flex-col gap-[3px]">
+              <span className="mono label">{i.k}</span>
+              <div className="mono text-[14px] text-[#f3f4f6] font-medium mt-[2px]">{i.v}</div>
+              <div className="mono text-[11px] text-[#8b96a5]">{i.sub}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
-        {/* Left: creators */}
-        <div className="space-y-6">
-          <AiMarketCreator prices={prices} onCreated={refetch} />
-          <DailyCreator prices={prices} onCreated={refetch} />
-          <CustomCreator onCreated={refetch} />
+      <div className="px-4 sm:px-6 lg:px-8 space-y-[14px] pb-10">
+        <div className="space-y-2">
+          <NetworkGate />
+          {isConnected && !wrongChain && ownerMismatch && (
+            <TxBanner
+              tone="warning"
+              message="This wallet is not the on-chain factory owner."
+              hint={`Factory owner: ${shortenAddress(onChainOwner as string)} · Connected: ${shortenAddress(
+                address ?? "",
+              )}. createMarket / resolve / cancel will revert.`}
+            />
+          )}
+          {bannerError && <TxBanner message={bannerError} onDismiss={() => setBannerError(null)} />}
         </div>
 
-        {/* Right: markets list */}
-        <div>
-          <h2 className="mb-4 text-sm font-semibold text-[#9aa5b1]">
-            All markets ({addresses?.length ?? 0})
-          </h2>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin text-[#3b82f6]" />
+        {/* Metrics */}
+        <div id="admin-overview" className="grid gap-[12px] grid-cols-1 md:grid-cols-2 xl:grid-cols-4 scroll-mt-[72px]">
+          <Metric
+            icon={Wallet}
+            accent="#22c55e"
+            label="Treasury balance"
+            value={treasuryBalance ? fmtUSDCCompact(treasuryBalance as bigint) : "—"}
+            sub={`USDC · ${shortenAddress(treasuryAddress)}`}
+          />
+          <Metric
+            icon={Landmark}
+            accent="#3b82f6"
+            label="Est. protocol fees"
+            value={fmtUSDCCompact(estimatedFees)}
+            sub="Cycle-to-date capture"
+          />
+          <Metric
+            icon={BarChart3}
+            accent="#f59e0b"
+            label="Open notional"
+            value={fmtUSDCCompact(openVolume)}
+            sub={`${openEntries.length} unresolved markets`}
+          />
+          <Metric
+            icon={Clock3}
+            accent="#a855f7"
+            label="Settlement queue"
+            value={String(dueEntries.length)}
+            sub={`${overdueCount} overdue · due ≤24h`}
+          />
+        </div>
+
+        {/* Protocol overview + treasury */}
+        <div id="admin-treasury" className="grid gap-[14px] xl:grid-cols-[1.35fr_1fr] scroll-mt-[72px]">
+          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+            <div className="flex items-baseline justify-between mb-5">
+              <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6]">Protocol overview</h3>
+              <button
+                onClick={loadPrices}
+                disabled={loadingPrices}
+                className="mono text-[11px] text-[#6b7280] hover:text-[#f3f4f6] transition-colors flex items-center gap-[5px]"
+              >
+                <RefreshCw className={`h-3 w-3 ${loadingPrices ? "animate-spin" : ""}`} />
+                Refresh prices
+              </button>
             </div>
-          ) : sortedAddrs.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#262d39] py-10 text-center text-sm text-[#363d4b]">
-              No markets yet — launch your first daily batch above.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedAddrs.map((addr) => (
-                <ResolveRow key={addr} address={addr} prices={prices} onDone={refetch} />
+            <div className="flex flex-col gap-4 mb-5">
+              {[
+                {
+                  label: "Cycle usage",
+                  value: cycleProgress,
+                  color: "#3b82f6",
+                  right: `${cycleDay} / ${daysInCycle} days`,
+                },
+                {
+                  label: "Resolved market coverage",
+                  value: resolvedShare,
+                  color: "#22c55e",
+                  right: `${resolvedEntries.length} / ${loadedEntries.length}`,
+                },
+                {
+                  label: "Protocol fee capture",
+                  value: feeCaptureShare,
+                  color: "#2d9cdb",
+                  right: `${fmtUSDCCompact(estimatedFees)} on ${fmtUSDCCompact(totalVolume)}`,
+                },
+                {
+                  label: "Settlements due",
+                  value: settlementsShare,
+                  color: "#f59e0b",
+                  right: `${dueEntries.length} live · ${overdueCount} overdue`,
+                },
+              ].map((b) => (
+                <div key={b.label}>
+                  <div className="flex justify-between items-baseline mb-2">
+                    <span className="text-[12px] text-[#f3f4f6]">{b.label}</span>
+                    <div className="flex gap-3 items-baseline">
+                      <span className="mono text-[11px] text-[#8b96a5]">{b.right}</span>
+                      <span className="mono text-[12px] text-[#f3f4f6] font-medium min-w-[36px] text-right">
+                        {pct(clamp(b.value))}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-[4px] rounded-full overflow-hidden bg-[#1f2630]">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${clamp(b.value)}%`, background: b.color }}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
-          )}
+            <div className="grid grid-cols-1 md:grid-cols-3 pt-[18px] border-t border-[#1f2630]">
+              {[
+                { label: "Fee rule", v: `${(PLATFORM_FEE_BPS / 100).toFixed(2)}% flat`, sub: "Per market pool" },
+                { label: "Payout path", v: "USDC · instant", sub: "Arc settlement" },
+                { label: "Market-maker readiness", v: "UI ready", sub: "Rebates module pending" },
+              ].map((t, i) => (
+                <div
+                  key={t.label}
+                  className="px-4"
+                  style={{
+                    paddingLeft: i === 0 ? 0 : 16,
+                    borderLeft: i === 0 ? "none" : "1px solid #1f2630",
+                  }}
+                >
+                  <div className="mono label mb-[5px]">{t.label}</div>
+                  <div className="mono text-[13px] text-[#f3f4f6] font-medium">{t.v}</div>
+                  <div className="mono text-[10px] text-[#6b7280] mt-[2px]">{t.sub}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+            <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6] mb-5">Treasury & risk</h3>
+
+            <div className="flex flex-col gap-[14px] mb-5">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="mono label mb-[4px]">Treasury address</div>
+                  <div className="mono text-[13px] text-[#f3f4f6]">{shortenAddress(treasuryAddress)}</div>
+                </div>
+                <div className="flex gap-[4px]">
+                  <button
+                    onClick={() => copyAddress(treasuryAddress, "Treasury")}
+                    className="w-[28px] h-[28px] rounded-[3px] border border-[#1f2630] text-[#8b96a5] flex items-center justify-center hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors"
+                    aria-label="Copy treasury"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                  <a
+                    href={explorerUrl(treasuryAddress)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-[28px] h-[28px] rounded-[3px] border border-[#1f2630] text-[#8b96a5] flex items-center justify-center hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors"
+                    aria-label="Open in explorer"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-[14px] border-t border-[#1f2630]">
+                <div>
+                  <div className="mono label mb-[4px]">Admin authority</div>
+                  <div className="mono text-[13px] text-[#f3f4f6]">
+                    {onChainOwner ? shortenAddress(onChainOwner as string) : "—"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-[6px]">
+                  <div
+                    className="w-[6px] h-[6px] rounded-full"
+                    style={{ background: ownerMismatch ? "#ef4444" : "#22c55e" }}
+                  />
+                  <span className="mono text-[11px] text-[#8b96a5]">
+                    {ownerMismatch ? "Mismatch" : isConnected ? "Active" : "Disconnected"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="py-[16px] border-t border-[#1f2630]">
+              <div className="mono label mb-2">Largest market</div>
+              {largestMarket ? (
+                <>
+                  <Link
+                    href={`/market/${largestMarket.address}`}
+                    className="text-[13px] text-[#f3f4f6] leading-[1.4] mb-[6px] block hover:text-[#2d9cdb] transition-colors line-clamp-2"
+                  >
+                    {largestMarket.market.question}
+                  </Link>
+                  <div className="flex items-baseline gap-2">
+                    <span className="mono text-[16px] font-semibold text-[#f3f4f6]">
+                      {fmtUSDCCompact(largestMarket.totalPool)}
+                    </span>
+                    <span className="mono text-[11px] text-[#8b96a5]">
+                      pool · est. {fmtUSDCCompact((largestMarket.totalPool * BigInt(PLATFORM_FEE_BPS)) / 10000n)} fees
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-[12px] text-[#6b7280]">No market data yet.</div>
+              )}
+            </div>
+
+            <div className="pt-[16px] border-t border-[#1f2630]">
+              <div className="mono label mb-[10px]">Category mix</div>
+              {categoryMix.length === 0 ? (
+                <div className="text-[12px] text-[#6b7280]">No category data yet.</div>
+              ) : (
+                <>
+                  <div className="flex h-[4px] rounded-full overflow-hidden mb-3 bg-[#1f2630]">
+                    {categoryMix.map(([cat, total]) => {
+                      const share = totalVolume === 0n ? 0 : Number((total * 10000n) / totalVolume) / 100;
+                      return (
+                        <div
+                          key={cat}
+                          style={{ width: `${share}%`, background: catColor(cat) }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-col gap-[6px]">
+                    {categoryMix.map(([cat, total]) => {
+                      const share = totalVolume === 0n ? 0 : (Number(total) / Number(totalVolume)) * 100;
+                      return (
+                        <div key={cat} className="flex items-center gap-[10px] text-[12px]">
+                          <div
+                            className="w-[6px] h-[6px] rounded-full"
+                            style={{ background: catColor(cat) }}
+                          />
+                          <span className="text-[#f3f4f6]">{cat}</span>
+                          <span className="mono text-[#8b96a5] ml-auto">{pct(share)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Ledger + notes */}
+        <div id="admin-settlement" className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] scroll-mt-[72px]">
+          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] overflow-hidden">
+            <div className="flex items-baseline justify-between px-6 pt-5 pb-4">
+              <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6]">Market ledger</h3>
+              <span className="mono label">Top 6 by pool</span>
+            </div>
+            <div
+              className="mono text-[10px] uppercase text-[#6b7280] grid gap-[10px] px-6 pb-[10px]"
+              style={{ gridTemplateColumns: "1fr 100px 90px 100px 100px", letterSpacing: "0.14em" }}
+            >
+              <span>Question</span>
+              <span>Category</span>
+              <span>Status</span>
+              <span className="text-right">Volume</span>
+              <span className="text-right">Est. fee</span>
+            </div>
+            {isLoading && loadedEntries.length === 0 ? (
+              <div className="flex items-center justify-center py-14 border-t border-[#1f2630]">
+                <Loader2 className="h-5 w-5 animate-spin text-[#2d9cdb]" />
+              </div>
+            ) : loadedEntries.length === 0 ? (
+              <div className="py-12 text-center text-[13px] text-[#6b7280] border-t border-[#1f2630]">
+                No markets yet — launch the first batch below.
+              </div>
+            ) : (
+              loadedEntries
+                .slice()
+                .sort((a, b) => Number(b.totalPool - a.totalPool))
+                .slice(0, 6)
+                .map((entry) => <LedgerRow key={entry.address} entry={entry} nowSec={nowSec} />)
+            )}
+          </section>
+
+          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+            <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6] mb-5">Operator notes</h3>
+            <div className="flex flex-col gap-4">
+              {[
+                {
+                  title: "Market-first layout",
+                  body: "Operator surfaces mirror the trader view so context switches stay cheap. Ledger rows share density with the public feed.",
+                },
+                {
+                  title: "Treasury mapping",
+                  body: "Protocol fees accrue to the treasury address pulled live from the factory. USDC settles in the same unit users trade.",
+                },
+                {
+                  title: "Same surface language",
+                  body: "Admin uses the same palette and type as the public app — gradient CTAs flag protocol-control paths only.",
+                },
+              ].map((n, i) => (
+                <div
+                  key={n.title}
+                  style={{ paddingTop: i === 0 ? 0 : 16, borderTop: i === 0 ? "none" : "1px solid #1f2630" }}
+                >
+                  <div className="text-[13px] font-semibold text-[#f3f4f6] mb-[6px]">{n.title}</div>
+                  <div className="text-[12px] text-[#8b96a5] leading-[1.55]">{n.body}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Operator actions */}
+        <div id="admin-create" className="scroll-mt-[72px]">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="m-0 text-[16px] font-semibold text-[#f3f4f6] tracking-[-0.3px]">Operator actions</h2>
+            <span className="mono text-[11px] text-[#6b7280]">
+              Writes {writesDisabled ? "disabled" : "enabled"} · signature required
+            </span>
+          </div>
+          <div className="grid gap-[14px] xl:grid-cols-[1.1fr_1fr] items-stretch">
+            <div className="flex flex-col gap-[14px]">
+              <AiMarketCreator
+                prices={prices}
+                onCreated={refetch}
+                disabled={writesDisabled}
+                onError={setBannerError}
+              />
+              <DailyCreator
+                prices={prices}
+                onCreated={refetch}
+                disabled={writesDisabled}
+                onError={setBannerError}
+              />
+              <CustomCreator
+                onCreated={refetch}
+                disabled={writesDisabled}
+                onError={setBannerError}
+              />
+            </div>
+            <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6 h-full">
+              <div className="flex items-baseline justify-between mb-4">
+                <div>
+                  <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6]">Settlement queue</h3>
+                  <div className="mono text-[11px] text-[#6b7280] mt-[3px]">
+                    {sortedAddrs.length} markets · {overdueCount} overdue · {dueEntries.length} due ≤24h
+                  </div>
+                </div>
+              </div>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#2d9cdb]" />
+                </div>
+              ) : sortedAddrs.length === 0 ? (
+                <div className="rounded-[4px] border border-dashed border-[#1f2630] py-10 text-center text-[13px] text-[#6b7280]">
+                  No markets yet — launch your first daily batch on the left.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-[10px] max-h-[900px] overflow-y-auto pr-[2px]">
+                  {sortedAddrs.map((a) => (
+                    <QueueCard
+                      key={a}
+                      address={a}
+                      prices={prices}
+                      onDone={refetch}
+                      disabled={writesDisabled}
+                      nowSec={nowSec}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
-// Keep the crypto-question helper reachable to avoid tree-shaking surprises in dev.
 void buildCryptoQuestion;

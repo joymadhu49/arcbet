@@ -3,13 +3,15 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 :root {
-  --background: #071021;
-  --surface: #0d1622;
-  --surface-strong: #111f2f;
-  --surface-soft: rgba(15, 24, 38, 0.92);
+  --background: #0b0e12;
+  --surface: #131820;
+  --surface-strong: #1f2630;
+  --surface-soft: #0f141b;
   --foreground: #f3f4f6;
   --muted: #8b96a5;
+  --muted-strong: #6b7280;
   --border: #1f2630;
+  --border-strong: #2a3340;
   --accent: #2d9cdb;
   --accent-soft: rgba(45, 156, 219, 0.14);
   --success: #22c55e;
@@ -20,31 +22,41 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 * { box-sizing: border-box; }
 
 html, body { min-height: 100%; }
 
+html, body {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 body {
-  background: radial-gradient(circle at top left, rgba(45, 156, 219, 0.08), transparent 28%),
-              radial-gradient(circle at top right, rgba(94, 106, 210, 0.08), transparent 24%),
-              linear-gradient(180deg, #071021 0%, #080f18 45%, #091018 100%);
+  background: #0b0e12;
   color: var(--foreground);
-  font-feature-settings: "ss01", "cv11";
+  font-feature-settings: "cv11";
+}
+
+/* Propex utility classes — match the mock verbatim */
+.mono {
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b7280;
 }
 
 .surface { background: var(--surface); }
 .surface-soft { background: var(--surface-soft); }
 .text-muted { color: var(--muted); }
 .border-surface { border-color: var(--border); }
-.btn-accent {
-  background: var(--accent);
-  color: #fff;
-}
-
 .tabular { font-variant-numeric: tabular-nums; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -69,4 +81,37 @@ body {
   background: linear-gradient(90deg, #111b26 0, #172333 40px, #111b26 80px);
   background-size: 200px 100%;
   animation: skeleton 1.4s linear infinite;
+}
+
+/* Left-to-right scrolling ticker marquee */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 60s linear infinite;
+  will-change: transform;
+}
+
+/* Focus rings */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #2d9cdb;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-live,
+  .skeleton,
+  .animate-spin,
+  .ticker-track {
+    animation: none !important;
+  }
+  .animate-live { opacity: 0.6; }
+  * { transition-duration: 0.01ms !important; }
 }

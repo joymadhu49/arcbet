@@ -51,7 +51,7 @@ export function buildSystemPrompt(nowIso: string, coinPrices: PriceMap | null): 
         .join("\n")
     : "- (no live prices available)";
 
-  return `You are ArcBet's market-proposal engine. Given a free-form admin instruction,
+  return `You are Propex's market-proposal engine. Given a free-form admin instruction,
 you produce a JSON object describing a binary (YES/NO) prediction market.
 
 CURRENT DATE (UTC): ${nowIso}

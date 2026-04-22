@@ -1,136 +1,141 @@
 "use client";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import { MarketData } from "@/types";
-import { formatUSDC, timeLeft } from "@/lib/utils";
+import { formatUSDC, timeLeft, seededSparkline } from "@/lib/utils";
 import { parseCryptoDescription } from "@/lib/cryptoMarkets";
-import { COIN_BY_ID, formatUsd } from "@/lib/coingecko";
+import { formatUsd } from "@/lib/coingecko";
+import CoinIcon from "@/components/ui/CoinIcon";
+import CatBadge from "@/components/ui/CatBadge";
+import OddsBar from "@/components/ui/OddsBar";
+import Sparkline from "@/components/ui/Sparkline";
 
 interface Props {
   market: MarketData;
   yesOdds?: bigint;
   noOdds?: bigint;
   totalPool?: bigint;
-  /** Optional live USD price for crypto markets, keyed by coingecko id. */
   livePrice?: number;
 }
 
 function MarketCard({ market, yesOdds, totalPool, livePrice }: Props) {
   const yPct = yesOdds ? Number(yesOdds) / 1e16 : 50;
-
   const cryptoMeta = parseCryptoDescription(market.description);
-  const coin = cryptoMeta ? COIN_BY_ID[cryptoMeta.coin] : null;
-  const trackingYes = cryptoMeta && livePrice !== undefined
-    ? livePrice > cryptoMeta.targetUsd
-    : null;
+  const trackingYes =
+    cryptoMeta && livePrice !== undefined ? livePrice > cryptoMeta.targetUsd : null;
+
+  const sparkline = useMemo(
+    () => seededSparkline(market.address, 28, yPct),
+    [market.address, yPct],
+  );
+  const trend = sparkline[sparkline.length - 1] > sparkline[0];
+  const shortId = market.address.slice(2, 6).toUpperCase();
 
   const statusLabel = market.resolved
     ? market.outcome === "YES"
       ? { text: "Resolved · YES", color: "#22c55e" }
       : market.outcome === "NO"
-      ? { text: "Resolved · NO", color: "#ef4444" }
-      : { text: "Cancelled", color: "#8b96a5" }
+        ? { text: "Resolved · NO", color: "#ef4444" }
+        : { text: "Cancelled", color: "#8b96a5" }
     : null;
 
   return (
-    <Link href={`/market/${market.address}`} className="block">
-      <div className="group h-full flex flex-col rounded-3xl border border-[#1f2630] bg-[#111b26] shadow-[0_20px_60px_-45px_rgba(0,0,0,0.7)] transition duration-200 hover:-translate-y-0.5 hover:border-[#2d9cdb]">
-        {/* Top: thumb + question + big chance */}
-        <div className="flex items-start gap-3 p-4">
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-[#0b0e12] ring-1 ring-[#1f2630]">
-            {market.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={market.imageUrl} alt="" className="h-full w-full object-cover" />
-            ) : coin ? (
-              <div
-                className="flex h-full w-full items-center justify-center text-sm font-bold"
-                style={{ background: `${coin.color}22`, color: coin.color }}
-              >
-                {coin.symbol[0]}
-              </div>
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-[#3a4250]">
-                {market.category.slice(0, 1)}
-              </div>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <p className="text-[13.5px] font-medium leading-snug text-[#f3f4f6] line-clamp-2">
+    <Link
+      href={`/market/${market.address}`}
+      className="block group"
+    >
+      <div
+        className="flex flex-col gap-[14px] rounded-[4px] border border-[#1f2630] bg-[#131820] p-4 transition-colors hover:border-[#2a3340]"
+      >
+        <div className="flex items-start gap-3">
+          <CoinIcon market={market} size={36} />
+          <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center mb-[6px]">
+              <CatBadge label={market.category || "Market"} />
+              <span className="mono label text-[#6b7280]">ID · {shortId}</span>
+            </div>
+            <div
+              className="text-[14px] font-medium leading-[1.35] text-[#f3f4f6] line-clamp-2"
+              style={{ textWrap: "pretty" }}
+            >
               {market.question}
-            </p>
-            <div className="mt-1 text-[11px] text-[#6b7280]">
-              {market.category}
-            </div>
-          </div>
-
-          {/* Big chance % — primary data point */}
-          <div className="shrink-0 text-right">
-            <div className="text-[22px] font-bold leading-none text-[#f3f4f6] tabular">
-              {yPct.toFixed(0)}%
-            </div>
-            <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-[#6b7280]">
-              chance
             </div>
           </div>
         </div>
 
-        {/* Optional live-price strip (crypto markets) */}
-        {cryptoMeta && (
-          <div className="mx-4 mb-3 flex items-center justify-between rounded-md border border-[#1f2630] bg-[#0b0e12] px-2.5 py-1.5 text-[11px]">
-            <span className="text-[#6b7280]">
-              Target <span className="font-mono text-[#f3f4f6] tabular">{formatUsd(cryptoMeta.targetUsd)}</span>
-            </span>
-            {livePrice !== undefined ? (
-              <span
-                className="font-mono tabular"
-                style={{ color: trackingYes ? "#22c55e" : "#ef4444" }}
-              >
-                {formatUsd(livePrice)}
+        <div className="flex items-end justify-between gap-[10px]">
+          <div>
+            <div className="label mb-[3px]">Yes chance</div>
+            <div className="flex items-baseline gap-[6px]">
+              <span className="mono text-[24px] font-semibold text-[#f3f4f6] tracking-[-0.5px]">
+                {yPct.toFixed(0)}
               </span>
-            ) : (
-              <span className="font-mono text-[#3a4250]">—</span>
-            )}
+              <span className="mono text-[12px] text-[#8b96a5]">%</span>
+            </div>
+          </div>
+          <Sparkline
+            data={sparkline}
+            width={86}
+            height={28}
+            color={trend ? "#22c55e" : "#ef4444"}
+          />
+        </div>
+
+        <OddsBar yes={yPct} />
+
+        {cryptoMeta && livePrice !== undefined && (
+          <div className="flex items-center justify-between text-[11px] border-t border-dashed border-[#1f2630] pt-[8px] -mt-[4px]">
+            <span className="text-[#6b7280]">
+              Live <span className="mono text-[#f3f4f6]">{formatUsd(livePrice)}</span>
+            </span>
+            <span className="mono" style={{ color: trackingYes ? "#22c55e" : "#ef4444" }}>
+              Target {formatUsd(cryptoMeta.targetUsd)}
+            </span>
           </div>
         )}
 
-        {/* Buy Yes / Buy No — small, secondary */}
-        <div className="grid grid-cols-2 gap-2 px-4">
-          <div className="rounded-2xl border border-[#22c55e]/20 bg-[#22c55e]/10 py-2 text-center text-[12px] font-semibold text-[#22c55e] group-hover:bg-[#22c55e]/15 transition-colors">
-            Buy Yes
+        <div
+          className="grid gap-2 pt-[10px] border-t border-dashed border-[#1f2630]"
+          style={{ gridTemplateColumns: "1fr 1fr 1fr" }}
+        >
+          <div>
+            <div className="label">Vol</div>
+            <div className="mono text-[12px] text-[#f3f4f6] mt-[2px]">
+              {totalPool ? formatUSDC(totalPool) : "$0.00"}
+            </div>
           </div>
-          <div className="rounded-2xl border border-[#ef4444]/20 bg-[#ef4444]/10 py-2 text-center text-[12px] font-semibold text-[#ef4444] group-hover:bg-[#ef4444]/15 transition-colors">
-            Buy No
+          <div>
+            <div className="label">Ends</div>
+            <div className="mono text-[12px] text-[#f3f4f6] mt-[2px]">
+              {statusLabel ? (
+                <span style={{ color: statusLabel.color }}>{statusLabel.text}</span>
+              ) : (
+                timeLeft(market.resolutionTime)
+              )}
+            </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-auto flex items-center justify-between px-4 pt-3 pb-3 text-[11px] text-[#6b7280]">
-          <span className="tabular">
-            {totalPool ? formatUSDC(totalPool) : "$0.00"} Vol
-          </span>
-          <span className="tabular">
-            {statusLabel ? (
-              <span style={{ color: statusLabel.color }}>{statusLabel.text}</span>
-            ) : (
-              timeLeft(market.resolutionTime)
-            )}
-          </span>
+          <div className="text-right">
+            <span className="inline-block bg-transparent border border-[#2a3340] text-[#f3f4f6] px-3 py-[6px] rounded-[3px] text-[11px] font-semibold tracking-[0.08em] uppercase group-hover:bg-[#1f2630] transition-colors">
+              Trade →
+            </span>
+          </div>
         </div>
       </div>
     </Link>
   );
 }
 
-export default memo(MarketCard, (prev, next) =>
-  prev.market.address === next.market.address &&
-  prev.market.resolved === next.market.resolved &&
-  prev.market.outcome === next.market.outcome &&
-  prev.market.resolutionTime === next.market.resolutionTime &&
-  prev.market.question === next.market.question &&
-  prev.market.imageUrl === next.market.imageUrl &&
-  prev.yesOdds === next.yesOdds &&
-  prev.noOdds === next.noOdds &&
-  prev.totalPool === next.totalPool &&
-  prev.livePrice === next.livePrice,
+export default memo(
+  MarketCard,
+  (prev, next) =>
+    prev.market.address === next.market.address &&
+    prev.market.resolved === next.market.resolved &&
+    prev.market.outcome === next.market.outcome &&
+    prev.market.resolutionTime === next.market.resolutionTime &&
+    prev.market.question === next.market.question &&
+    prev.market.imageUrl === next.market.imageUrl &&
+    prev.yesOdds === next.yesOdds &&
+    prev.noOdds === next.noOdds &&
+    prev.totalPool === next.totalPool &&
+    prev.livePrice === next.livePrice,
 );

@@ -22,6 +22,20 @@ export const MARKET_FACTORY_ABI = [
   },
   {
     inputs: [
+      { internalType: "string",  name: "question",       type: "string" },
+      { internalType: "string",  name: "description",    type: "string" },
+      { internalType: "string",  name: "category",       type: "string" },
+      { internalType: "string",  name: "imageUrl",       type: "string" },
+      { internalType: "uint256", name: "resolutionTime", type: "uint256" },
+      { internalType: "uint256", name: "seedLiquidity",  type: "uint256" },
+    ],
+    name: "createMarketWithSeed",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
       { internalType: "address", name: "market", type: "address" },
       { internalType: "bool",    name: "yesWon", type: "bool" },
     ],
@@ -33,6 +47,20 @@ export const MARKET_FACTORY_ABI = [
   {
     inputs: [{ internalType: "address", name: "market", type: "address" }],
     name: "cancelMarket",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "market", type: "address" }],
+    name: "reclaimResidual",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "newSeed", type: "uint256" }],
+    name: "setDefaultSeedLiquidity",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -58,16 +86,42 @@ export const MARKET_FACTORY_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [],
+    name: "defaultSeedLiquidity",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "owner",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export const PREDICTION_MARKET_ABI = [
   {
     inputs: [
-      { internalType: "bool",    name: "isYes",  type: "bool" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
+      { internalType: "bool",    name: "isYes",          type: "bool" },
+      { internalType: "uint256", name: "amountIn",       type: "uint256" },
+      { internalType: "uint256", name: "minSharesOut",   type: "uint256" },
     ],
-    name: "placeBet",
-    outputs: [],
+    name: "buy",
+    outputs: [{ internalType: "uint256", name: "sharesOut", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bool",    name: "isYes",          type: "bool" },
+      { internalType: "uint256", name: "sharesIn",       type: "uint256" },
+      { internalType: "uint256", name: "minAmountOut",   type: "uint256" },
+    ],
+    name: "sell",
+    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -89,8 +143,7 @@ export const PREDICTION_MARKET_ABI = [
           { internalType: "string",  name: "category",       type: "string" },
           { internalType: "string",  name: "imageUrl",       type: "string" },
           { internalType: "uint256", name: "resolutionTime", type: "uint256" },
-          { internalType: "uint256", name: "totalYes",       type: "uint256" },
-          { internalType: "uint256", name: "totalNo",        type: "uint256" },
+          { internalType: "uint256", name: "seedLiquidity",  type: "uint256" },
           { internalType: "uint8",   name: "outcome",        type: "uint8" },
           { internalType: "bool",    name: "resolved",       type: "bool" },
         ],
@@ -120,6 +173,26 @@ export const PREDICTION_MARKET_ABI = [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "bool",    name: "isYes",    type: "bool" },
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+    ],
+    name: "previewBuy",
+    outputs: [{ internalType: "uint256", name: "sharesOut", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bool",    name: "isYes",    type: "bool" },
+      { internalType: "uint256", name: "sharesIn", type: "uint256" },
+    ],
+    name: "previewSell",
+    outputs: [{ internalType: "uint256", name: "grossOut", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "yesOdds",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
@@ -136,6 +209,20 @@ export const PREDICTION_MARKET_ABI = [
   {
     inputs: [],
     name: "totalPool",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "yesReserve",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "noReserve",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",

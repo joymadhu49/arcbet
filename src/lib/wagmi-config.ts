@@ -16,7 +16,7 @@ const projectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "bc3ba3e43e0cf5ad3749cbaf0fb29fb9";
 
 export const wagmiConfig = getDefaultConfig({
-  appName: "ArcBet",
+  appName: "Propex",
   projectId,
   chains: [arcTestnet],
   ssr: true,

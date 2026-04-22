@@ -36,7 +36,7 @@ export function buildCryptoDescription(meta: CryptoMarketMeta): string {
     `Resolves YES if ${coin.name} (${coin.symbol}) trades above ` +
     `${formatUsd(meta.targetUsd)} on CoinGecko at market resolution time ` +
     `(24 hours after creation). Spot price at creation: ${formatUsd(meta.startUsd)}. ` +
-    `Auto-resolved by the ArcBet admin at end of day using the CoinGecko spot price.`;
+    `Auto-resolved by the Propex admin at end of day using the CoinGecko spot price.`;
   return `${human}\n\n${CRYPTO_MARKET_TAG}${JSON.stringify(meta)}`;
 }
 

@@ -1,4 +1,4 @@
-# ArcBet — Daily Crypto Prediction Markets
+# Propex — Daily Crypto Prediction Markets
 
 > Polymarket-style daily (24h) crypto prediction markets, settled in USDC on **Arc Testnet** (Circle's L1 with USDC-as-gas).
 
@@ -7,11 +7,12 @@
 | Layer | Tech |
 |-------|------|
 | Frontend | Next.js 16, TypeScript, Tailwind CSS |
-| Wallet | wagmi + viem (MetaMask / injected) |
+| Wallet | wagmi + viem + RainbowKit |
 | Contracts | Solidity 0.8.24, Hardhat 3 |
 | Network | **Arc Testnet (Chain ID 5042002)** |
 | Settlement | USDC (`0x3600000000000000000000000000000000000000`) |
 | Price oracle | CoinGecko public API (no key) |
+| AI market creator | OpenRouter (`anthropic/claude-sonnet-4.5`) |
 
 ## ⚠️ Arc Network Specifics
 
@@ -34,7 +35,8 @@ Claim USDC on **Arc Testnet** at [faucet.circle.com](https://faucet.circle.com/)
 ### 3. Configure environment
 ```bash
 cp .env.example .env.local
-# Fill in: DEPLOYER_PRIVATE_KEY, NEXT_PUBLIC_ADMIN_ADDRESS
+# Fill in: DEPLOYER_PRIVATE_KEY, NEXT_PUBLIC_ADMIN_ADDRESS,
+# NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID, OPENROUTER_API_KEY
 ```
 
 ### 4. Deploy contracts
@@ -54,7 +56,7 @@ npm run dev
 ## Project Structure
 
 ```
-arcbet/
+propex/
 ├── contracts/              # Solidity
 │   ├── MarketFactory.sol
 │   ├── PredictionMarket.sol
@@ -62,25 +64,27 @@ arcbet/
 ├── scripts/deploy.ts       # Deploys to Arc Testnet
 ├── src/
 │   ├── app/                # Next.js 16 App Router pages
-│   │   ├── page.tsx                    # Home / market list with live price ticker
-│   │   ├── market/[address]/page.tsx   # Market detail + live price tracking
-│   │   ├── portfolio/page.tsx          # User positions + claims
-│   │   └── admin/page.tsx              # Gated: create + auto-resolve markets
+│   │   ├── page.tsx                    # Home / market list
+│   │   ├── market/[address]/page.tsx   # Detail + sticky BetCard
+│   │   ├── portfolio/page.tsx          # Positions + claim-all
+│   │   ├── leaderboard/page.tsx        # Coming soon
+│   │   ├── admin/page.tsx              # Gated: metrics + create + resolve
+│   │   └── api/ai-market/route.ts      # Server-side OpenRouter proxy
 │   ├── components/
-│   │   ├── Navbar.tsx
-│   │   ├── MarketCard.tsx
-│   │   ├── BetModal.tsx
-│   │   └── Providers.tsx
+│   │   ├── Navbar.tsx          Logo.tsx     Ticker.tsx
+│   │   ├── MarketCard.tsx      BetModal.tsx NetworkGate.tsx  TxBanner.tsx
+│   │   ├── AiMarketCreator.tsx Providers.tsx PriceProvider.tsx
+│   │   └── ui/                 # CoinIcon, OddsBar, Sparkline, PriceChart, StatStrip
 │   ├── hooks/
-│   │   ├── useMarkets.ts
-│   │   ├── useBet.ts
-│   │   └── useIsAdmin.ts
+│   │   ├── useMarkets.ts   useBet.ts   useIsAdmin.ts
 │   └── lib/
-│       ├── chains.ts                   # Arc Testnet chain def
-│       ├── wagmi-config.ts             # Arc-only wagmi config
-│       ├── coingecko.ts                # Price fetching
-│       ├── cryptoMarkets.ts            # Daily market builder + metadata
-│       ├── constants.ts                # Verified Arc contract addresses
+│       ├── chains.ts               # Arc Testnet chain def
+│       ├── wagmi-config.ts         # Arc-only wagmi config
+│       ├── coingecko.ts            # Price fetching
+│       ├── cryptoMarkets.ts        # Daily market builder + metadata tag
+│       ├── ai.ts                   # Shared AI types + system prompt
+│       ├── constants.ts            # Verified Arc contract addresses
+│       ├── errors.ts               # Tx error → human message
 │       └── utils.ts
 ```
 
@@ -97,6 +101,7 @@ Market metadata (coin, startUsd, targetUsd, createdAt) is embedded as a JSON tag
 ## Revenue
 
 - **1.5% fee** on every bet, captured by `PredictionMarket` and forwarded to `Treasury`
+- Treasury owner (`factory.owner()`) can `withdraw(amount)` at any time.
 
 ## Verified Sources
 
@@ -104,3 +109,4 @@ Market metadata (coin, startUsd, targetUsd, createdAt) is embedded as a JSON tag
 - Connect to Arc:  https://docs.arc.network/arc/references/connect-to-arc
 - Contract addresses: https://docs.arc.network/arc/references/contract-addresses
 - CoinGecko API: https://www.coingecko.com/en/api
+- OpenRouter models: https://openrouter.ai/models
