@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import Navbar from "@/components/Navbar";
 import Ticker from "@/components/Ticker";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
 const jetbrains = JetBrains_Mono({ variable: "--font-mono", subsets: ["latin"], display: "swap" });
@@ -35,12 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <Ticker />
           <main className="min-h-[calc(100vh-86px)]">{children}</main>
-          <footer className="border-t border-[#1f2630] mt-16">
-            <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6b7280]">
-              <span>Propex · Arc Testnet · Settled in USDC</span>
-              <span className="mono text-[#3a4250]">v0.1 · testnet</span>
-            </div>
-          </footer>
+          <Footer />
         </Providers>
       </body>
     </html>

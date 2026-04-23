@@ -54,7 +54,7 @@ export default function Navbar() {
           <NavLink href="/portfolio" label="Portfolio" active={isActive("/portfolio")} />
           <NavLink href="/leaderboard" label="Leaderboard" active={isActive("/leaderboard")} />
           {isAdmin && <NavLink href="/admin" label="Admin" active={isActive("/admin")} />}
-          <NavLink href="https://docs.arcbet.xyz" label="Docs" active={false} external />
+          <NavLink href="/docs" label="Docs" active={isActive("/docs")} />
         </div>
       </div>
 
