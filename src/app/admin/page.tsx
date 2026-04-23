@@ -383,15 +383,27 @@ function DailyCreator({
   onCreated,
   disabled,
   onError,
+  treasuryBalance,
+  seedPerMarket,
+  onTreasuryRefetch,
 }: {
   prices: PriceMap | null;
   onCreated: () => void;
   disabled: boolean;
   onError: (msg: string | null) => void;
+  treasuryBalance: bigint | undefined;
+  seedPerMarket: bigint | undefined;
+  onTreasuryRefetch: () => void;
 }) {
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Pre-flight: how many daily markets can the treasury currently seed?
+  const affordable =
+    treasuryBalance !== undefined && seedPerMarket !== undefined && seedPerMarket > 0n
+      ? Number(treasuryBalance / seedPerMarket)
+      : undefined;
 
   async function createOne(coinId: (typeof TRACKED_COINS)[number]["id"]) {
     onError(null);
@@ -399,6 +411,12 @@ function DailyCreator({
     const price = prices?.[coinId]?.usd;
     if (!price) {
       const msg = "Price unavailable — refresh prices first.";
+      onError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (seedPerMarket !== undefined && treasuryBalance !== undefined && treasuryBalance < seedPerMarket) {
+      const msg = `Treasury has ${(Number(treasuryBalance) / 1e6).toFixed(2)} USDC but this market needs ${(Number(seedPerMarket) / 1e6).toFixed(2)} USDC seed. Top up the treasury first.`;
       onError(msg);
       toast.error(msg);
       return;
@@ -415,6 +433,7 @@ function DailyCreator({
       });
       if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success(`${coin.symbol} market created`, { id: `m-${coinId}` });
+      onTreasuryRefetch();
       onCreated();
     } catch (e) {
       const msg = txErrorMessage(e);
@@ -427,13 +446,41 @@ function DailyCreator({
 
   async function createAll() {
     onError(null);
+
+    // Filter coins that have prices (ready to launch)
+    const launchable = TRACKED_COINS.filter((c) => prices?.[c.id]?.usd !== undefined);
+    if (launchable.length === 0) {
+      const msg = "No coin prices available — refresh prices first.";
+      onError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // Pre-flight treasury balance check — fail loudly BEFORE any tx if underfunded.
+    if (seedPerMarket !== undefined && treasuryBalance !== undefined) {
+      const need = BigInt(launchable.length) * seedPerMarket;
+      if (treasuryBalance < need) {
+        const haveNum = Number(treasuryBalance) / 1e6;
+        const needNum = Number(need) / 1e6;
+        const canDo = Number(treasuryBalance / seedPerMarket);
+        const msg =
+          `Treasury has ${haveNum.toFixed(2)} USDC but ${launchable.length} markets need ${needNum.toFixed(2)} USDC. ` +
+          `Can only launch ${canDo} — top up the treasury or reduce the seed via factory.setDefaultSeedLiquidity.`;
+        onError(msg);
+        toast.error(msg);
+        return;
+      }
+    }
+
     setBusy("all");
-    try {
-      for (const c of TRACKED_COINS) {
-        const price = prices?.[c.id]?.usd;
-        if (!price) continue;
-        const m = buildDailyMarket(c, price);
-        toast.loading(`Creating ${c.symbol}…`, { id: "m-all" });
+    const results: { sym: string; ok: boolean; err?: string }[] = [];
+
+    for (const c of launchable) {
+      const price = prices?.[c.id]?.usd;
+      if (!price) continue;
+      const m = buildDailyMarket(c, price);
+      toast.loading(`Creating ${c.symbol}… (${results.length + 1}/${launchable.length})`, { id: "m-all" });
+      try {
         const hash = await writeContractAsync({
           address: FACTORY_ADDRESS,
           abi: MARKET_FACTORY_ABI,
@@ -441,16 +488,31 @@ function DailyCreator({
           args: [m.question, m.description, m.category, m.imageUrl, m.resolutionTime],
         });
         if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+        results.push({ sym: c.symbol, ok: true });
+      } catch (e) {
+        // Don't abort on a single failure — keep going so remaining coins still get a chance.
+        results.push({ sym: c.symbol, ok: false, err: txErrorMessage(e) });
       }
-      toast.success("All daily markets created", { id: "m-all" });
-      onCreated();
-    } catch (e) {
-      const msg = txErrorMessage(e);
+    }
+
+    const ok = results.filter((r) => r.ok).map((r) => r.sym);
+    const fail = results.filter((r) => !r.ok);
+
+    if (fail.length === 0) {
+      toast.success(`All ${ok.length} daily markets created`, { id: "m-all" });
+    } else if (ok.length === 0) {
+      const msg = `Failed all ${fail.length} markets. First error: ${fail[0].err}`;
       onError(msg);
       toast.error(msg, { id: "m-all" });
-    } finally {
-      setBusy(null);
+    } else {
+      const msg = `Created ${ok.join(", ")}. Failed: ${fail.map((f) => f.sym).join(", ")}. First error: ${fail[0].err}`;
+      onError(msg);
+      toast.error(msg, { id: "m-all" });
     }
+
+    onTreasuryRefetch();
+    onCreated();
+    setBusy(null);
   }
 
   return (
@@ -462,6 +524,14 @@ function DailyCreator({
           </h3>
           <div className="mono text-[11px] text-[#6b7280] mt-[3px]">
             {TRACKED_COINS.length} above-target prompts · 24h resolve
+            {affordable !== undefined && seedPerMarket !== undefined && (
+              <>
+                {" · "}
+                <span style={{ color: affordable >= TRACKED_COINS.length ? "#22c55e" : affordable === 0 ? "#ef4444" : "#f59e0b" }}>
+                  treasury can seed {affordable}/{TRACKED_COINS.length} @ {(Number(seedPerMarket) / 1e6).toFixed(0)} USDC
+                </span>
+              </>
+            )}
           </div>
         </div>
         <button
@@ -680,7 +750,7 @@ export default function AdminPage() {
 
   const treasuryAddress = ((onChainTreasury as `0x${string}` | undefined) ?? TREASURY_ADDRESS) as `0x${string}`;
 
-  const { data: treasuryBalance } = useReadContract({
+  const { data: treasuryBalance, refetch: refetchTreasuryBalance } = useReadContract({
     address: USDC_ADDRESS,
     abi: ERC20_ABI,
     functionName: "balanceOf",
@@ -690,6 +760,15 @@ export default function AdminPage() {
         !!treasuryAddress &&
         treasuryAddress !== "0x0000000000000000000000000000000000000000" &&
         USDC_ADDRESS !== "0x0000000000000000000000000000000000000000",
+    },
+  });
+
+  const { data: defaultSeedLiquidity } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: MARKET_FACTORY_ABI,
+    functionName: "defaultSeedLiquidity",
+    query: {
+      enabled: !!FACTORY_ADDRESS && FACTORY_ADDRESS !== "0x0000000000000000000000000000000000000000",
     },
   });
 
@@ -1183,6 +1262,9 @@ export default function AdminPage() {
                 onCreated={refetch}
                 disabled={writesDisabled}
                 onError={setBannerError}
+                treasuryBalance={treasuryBalance as bigint | undefined}
+                seedPerMarket={defaultSeedLiquidity as bigint | undefined}
+                onTreasuryRefetch={refetchTreasuryBalance}
               />
               <CustomCreator
                 onCreated={refetch}

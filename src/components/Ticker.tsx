@@ -34,8 +34,9 @@ function TickerLoader({
 function TickerRow({ items, prices }: { items: TickEntry[]; prices: PriceMap | null }) {
   const nodes: React.ReactNode[] = [];
 
-  // Market-based ticks (up to 6 by totalPool)
+  // Market-based ticks (up to 6 by totalPool) — exclude resolved/cancelled
   const topMarkets = [...items]
+    .filter((e) => !e.market.resolved)
     .sort((a, b) => Number((b.totalPool ?? 0n) - (a.totalPool ?? 0n)))
     .slice(0, 6);
 

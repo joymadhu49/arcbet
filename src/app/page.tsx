@@ -84,7 +84,8 @@ export default function Home() {
   );
 
   const visible = useMemo(() => {
-    let list = loadedEntries;
+    // Hide resolved/cancelled markets from the main feed — they live at their detail URL.
+    let list = loadedEntries.filter((e) => !e.market.resolved);
     if (activeCategory !== "All") list = list.filter((e) => e.market.category === activeCategory);
     if (search) {
       const q = search.toLowerCase();

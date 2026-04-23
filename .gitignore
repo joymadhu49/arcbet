@@ -43,3 +43,6 @@ next-env.d.ts
 # hardhat build outputs
 /artifacts
 /cache
+
+# graphify knowledge graph outputs (regenerable)
+graphify-out/
