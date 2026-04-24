@@ -21,7 +21,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return Response.json({ error: "address required" }, { status: 400 });
   }
 
-  const { nonce } = createNonce();
+  const { nonce } = await createNonce();
   const host = req.headers.get("host") ?? "localhost:3000";
   const message = buildSignInMessage({
     domain: host,

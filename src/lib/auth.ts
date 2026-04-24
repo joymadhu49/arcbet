@@ -12,9 +12,10 @@
  *
  * The only secret is ADMIN_SESSION_SECRET (server-only). Losing it only invalidates
  * existing sessions — users just re-sign-in.
+ *
+ * All crypto uses the Web Crypto API so the same code runs in the Edge runtime
+ * (Next.js middleware) AND the Node runtime (API routes).
  */
-
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /** 4 hours. Long enough to avoid mid-session signouts, short enough to limit exposure. */
 export const SESSION_TTL_SECONDS = 4 * 60 * 60;
@@ -25,53 +26,95 @@ export const NONCE_TTL_SECONDS = 5 * 60;
 /** Name of the httpOnly session cookie. */
 export const SESSION_COOKIE = "propex_admin";
 
-function secret(): string {
+function secretString(): string {
   const s = process.env.ADMIN_SESSION_SECRET;
   if (!s || s.length < 16) {
     throw new Error(
-      "ADMIN_SESSION_SECRET missing or too short (need 16+ chars). Set it in .env.local.",
+      "ADMIN_SESSION_SECRET missing or too short (need 16+ chars). Set it in your environment.",
     );
   }
   return s;
 }
 
-function b64urlEncode(buf: Buffer | string): string {
-  const b = typeof buf === "string" ? Buffer.from(buf, "utf8") : buf;
-  return b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+/** Encode bytes as base64url. Works in Edge + Node. */
+function b64urlEncode(bytes: ArrayBuffer | Uint8Array): string {
+  const buf = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = "";
+  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+  // btoa is available in both Edge runtime and modern Node.
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function b64urlDecode(s: string): Buffer {
+function b64urlDecodeToString(s: string): string {
   const padded = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
-  return Buffer.from(padded, "base64");
+  const bin = atob(padded);
+  return bin;
 }
 
-function hmac(payload: string): string {
-  return b64urlEncode(createHmac("sha256", secret()).update(payload).digest());
+/**
+ * Encode string → ArrayBuffer. We use ArrayBuffer (not Uint8Array) because the
+ * Web Crypto types in @types/node 20 reject Uint8Array<ArrayBufferLike> for
+ * BufferSource in strict mode.
+ */
+function utf8Encode(s: string): ArrayBuffer {
+  const view = new TextEncoder().encode(s);
+  // Copy into a fresh ArrayBuffer to guarantee the exact `ArrayBuffer` type
+  // (not SharedArrayBuffer) that Web Crypto's BufferSource expects.
+  const ab = new ArrayBuffer(view.byteLength);
+  new Uint8Array(ab).set(view);
+  return ab;
 }
 
+async function importHmacKey(secret: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    utf8Encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+async function hmac(payload: string): Promise<string> {
+  const key = await importHmacKey(secretString());
+  const sig = await crypto.subtle.sign("HMAC", key, utf8Encode(payload));
+  return b64urlEncode(sig);
+}
+
+/** Constant-time equality (prevents HMAC timing side channel). */
 function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/** Crypto-strong random hex using Web Crypto. */
+function randomHex(bytes: number): string {
+  const a = new Uint8Array(bytes);
+  crypto.getRandomValues(a);
+  let out = "";
+  for (let i = 0; i < a.length; i++) out += a[i].toString(16).padStart(2, "0");
+  return out;
 }
 
 // ── Nonces ─────────────────────────────────────────────
 
 /** Create an HMAC-bound nonce carrying its own timestamp. */
-export function createNonce(): { nonce: string; issuedAt: number } {
+export async function createNonce(): Promise<{ nonce: string; issuedAt: number }> {
   const issuedAt = Math.floor(Date.now() / 1000);
-  const rand = randomBytes(12).toString("hex");
+  const rand = randomHex(12);
   const payload = `${rand}.${issuedAt}`;
-  const sig = hmac(payload);
+  const sig = await hmac(payload);
   return { nonce: `${payload}.${sig}`, issuedAt };
 }
 
-export function verifyNonce(nonce: string): boolean {
+export async function verifyNonce(nonce: string): Promise<boolean> {
   const parts = nonce.split(".");
   if (parts.length !== 3) return false;
   const [rand, tsStr, sig] = parts;
-  if (!safeEqual(hmac(`${rand}.${tsStr}`), sig)) return false;
+  const expected = await hmac(`${rand}.${tsStr}`);
+  if (!safeEqual(expected, sig)) return false;
   const ts = Number(tsStr);
   if (!Number.isFinite(ts)) return false;
   const now = Math.floor(Date.now() / 1000);
@@ -113,25 +156,28 @@ export interface SessionPayload {
 }
 
 /** Issue a new signed session token. */
-export function signSession(addr: `0x${string}`): string {
+export async function signSession(addr: `0x${string}`): Promise<string> {
   const payload: SessionPayload = {
     addr: addr.toLowerCase(),
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
   };
-  const body = b64urlEncode(JSON.stringify(payload));
-  const sig = hmac(body);
+  const body = b64urlEncode(utf8Encode(JSON.stringify(payload)));
+  const sig = await hmac(body);
   return `${body}.${sig}`;
 }
 
 /** Verify + decode a session token. Returns null on any failure. */
-export function verifySession(token: string | undefined | null): SessionPayload | null {
+export async function verifySession(
+  token: string | undefined | null,
+): Promise<SessionPayload | null> {
   if (!token) return null;
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [body, sig] = parts;
-  if (!safeEqual(hmac(body), sig)) return null;
+  const expected = await hmac(body);
+  if (!safeEqual(expected, sig)) return null;
   try {
-    const parsed = JSON.parse(b64urlDecode(body).toString("utf8")) as SessionPayload;
+    const parsed = JSON.parse(b64urlDecodeToString(body)) as SessionPayload;
     if (!parsed.addr || typeof parsed.exp !== "number") return null;
     if (parsed.exp < Math.floor(Date.now() / 1000)) return null;
     return parsed;

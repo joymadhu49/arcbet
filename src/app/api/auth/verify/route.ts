@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // 1. Nonce must be fresh and HMAC-valid.
   const nonce = extractNonce(message);
-  if (!nonce || !verifyNonce(nonce)) {
+  if (!nonce || !(await verifyNonce(nonce))) {
     return Response.json({ error: "invalid or expired nonce" }, { status: 401 });
   }
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // 4. Issue session cookie.
-  const token = signSession(address);
+  const token = await signSession(address);
   const res = Response.json({ ok: true, address: address.toLowerCase() });
   res.headers.append(
     "Set-Cookie",

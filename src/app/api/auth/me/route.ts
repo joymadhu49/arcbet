@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest): Promise<Response> {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = verifySession(token);
+  const session = await verifySession(token);
   if (!session || !isAdminAddress(session.addr)) {
     return Response.json({ address: null });
   }

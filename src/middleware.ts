@@ -8,9 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, isAdminAddress, verifySession } from "@/lib/auth";
 
-export function middleware(req: NextRequest): NextResponse {
+export async function middleware(req: NextRequest): Promise<NextResponse> {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = verifySession(token);
+  const session = await verifySession(token);
   const ok = session !== null && isAdminAddress(session.addr);
 
   // API path: if unauthed, return 401 JSON instead of redirecting.
