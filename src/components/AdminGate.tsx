@@ -1,66 +1,90 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
+import { verifyMessage } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Loader2, Shield, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { ADMIN_ADDRESS } from "@/lib/constants";
 import { shortenAddress } from "@/lib/utils";
 
-type GateState = "loading" | "signed-in" | "signed-out";
+const STORAGE_KEY = "propex_admin_proof";
+
+interface Proof {
+  address: `0x${string}`;
+  message: string;
+  signature: `0x${string}`;
+  issuedAt: number; // unix seconds
+}
+
+/** 4 hours. After this, the cached proof is ignored and the user re-signs. */
+const PROOF_TTL_SECONDS = 4 * 60 * 60;
+
+/** Build the message the wallet signs. Includes the domain, address, and a
+ *  timestamp so replaying an old signature elsewhere doesn't match this app. */
+function buildMessage(address: `0x${string}`): { message: string; issuedAt: number } {
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const domain =
+    typeof window !== "undefined" ? window.location.host : "propex";
+  const message = [
+    `${domain} wants you to sign in as the Propex admin:`,
+    address,
+    ``,
+    `Prove ownership of this wallet to unlock the admin dashboard.`,
+    `No gas, no on-chain tx.`,
+    ``,
+    `Issued At: ${new Date(issuedAt * 1000).toISOString()}`,
+  ].join("\n");
+  return { message, issuedAt };
+}
 
 /**
- * Hard-gate the admin surface: until the wallet has proven ownership of
- * NEXT_PUBLIC_ADMIN_ADDRESS via a signed message, children are not rendered.
- * The `/api/auth/verify` endpoint also enforces this server-side — this
- * component just handles the UX.
+ * Gates the admin surface with a wallet signature. The signature proves
+ * possession of the ADMIN_ADDRESS private key (a spoofed window.ethereum
+ * can't produce one). Verification is client-side via viem.verifyMessage,
+ * so no server session, no cookie, no env secret needed.
+ *
+ * The on-chain MarketFactory.owner check is the real security layer — this
+ * component is a UX gate that keeps non-owners out of the dashboard.
  */
 export default function AdminGate({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
 
-  const [state, setState] = useState<GateState>("loading");
-  const [sessionAddr, setSessionAddr] = useState<string | null>(null);
+  const [proof, setProof] = useState<Proof | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
 
-  // Manual refresh (used after sign-in / sign-out clicks).
-  const refreshSession = useCallback(async (): Promise<void> => {
-    try {
-      const r = await fetch("/api/auth/me", { cache: "no-store" });
-      const data = (await r.json()) as { address?: string | null };
-      if (data.address) {
-        setSessionAddr(data.address);
-        setState("signed-in");
-      } else {
-        setSessionAddr(null);
-        setState("signed-out");
-      }
-    } catch {
-      setSessionAddr(null);
-      setState("signed-out");
-    }
-  }, []);
-
-  // Initial session check on mount. Cancel-safe: if the component unmounts
-  // before the fetch resolves we drop the result instead of setting state.
+  // Load cached proof on mount (cancel-safe).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch("/api/auth/me", { cache: "no-store" });
-        const data = (await r.json()) as { address?: string | null };
+        const raw = typeof window !== "undefined" ? sessionStorage.getItem(STORAGE_KEY) : null;
+        if (!raw) { if (!cancelled) setHydrated(true); return; }
+        const parsed = JSON.parse(raw) as Proof;
+        const now = Math.floor(Date.now() / 1000);
+        if (!parsed?.signature || !parsed.address || now - parsed.issuedAt > PROOF_TTL_SECONDS) {
+          sessionStorage.removeItem(STORAGE_KEY);
+          if (!cancelled) setHydrated(true);
+          return;
+        }
+        // Re-verify with viem every page load — cheap, prevents tampered storage.
+        const ok = await verifyMessage({
+          address: parsed.address,
+          message: parsed.message,
+          signature: parsed.signature,
+        });
         if (cancelled) return;
-        if (data.address) {
-          setSessionAddr(data.address);
-          setState("signed-in");
+        if (ok && parsed.address.toLowerCase() === ADMIN_ADDRESS) {
+          setProof(parsed);
         } else {
-          setSessionAddr(null);
-          setState("signed-out");
+          sessionStorage.removeItem(STORAGE_KEY);
         }
       } catch {
-        if (cancelled) return;
-        setSessionAddr(null);
-        setState("signed-out");
+        if (typeof window !== "undefined") sessionStorage.removeItem(STORAGE_KEY);
+      } finally {
+        if (!cancelled) setHydrated(true);
       }
     })();
     return () => { cancelled = true; };
@@ -77,48 +101,33 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
     }
     setSigningIn(true);
     try {
-      // 1. Nonce + canonical message from the server.
-      const nonceRes = await fetch("/api/auth/nonce", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address }),
-      });
-      if (!nonceRes.ok) throw new Error((await nonceRes.json()).error ?? "nonce failed");
-      const { message } = (await nonceRes.json()) as { nonce: string; message: string };
-
-      // 2. Sign the message.
+      const { message, issuedAt } = buildMessage(address);
       toast.loading("Waiting for wallet signature…", { id: "signin" });
       const signature = await signMessageAsync({ message });
 
-      // 3. Submit for verification.
-      const verifyRes = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address, message, signature }),
-      });
-      const data = (await verifyRes.json()) as { ok?: boolean; error?: string };
-      if (!verifyRes.ok || !data.ok) {
-        throw new Error(data.error ?? `verify failed (${verifyRes.status})`);
-      }
+      // Verify what we just got — catches wallets that lie about the address.
+      const ok = await verifyMessage({ address, message, signature });
+      if (!ok) throw new Error("Signature does not match the connected address");
 
+      const p: Proof = { address, message, signature, issuedAt };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+      setProof(p);
       toast.success("Signed in as admin", { id: "signin" });
-      await refreshSession();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(`Sign-in failed: ${msg}`, { id: "signin" });
     } finally {
       setSigningIn(false);
     }
-  }, [address, signMessageAsync, refreshSession]);
+  }, [address, signMessageAsync]);
 
-  const signOut = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setSessionAddr(null);
-    setState("signed-out");
+  const signOut = useCallback(() => {
+    sessionStorage.removeItem(STORAGE_KEY);
+    setProof(null);
     toast.success("Signed out");
   }, []);
 
-  if (state === "loading") {
+  if (!hydrated) {
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="h-5 w-5 animate-spin text-[#8b96a5]" />
@@ -126,7 +135,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (state === "signed-out") {
+  if (!proof) {
     const walletIsAdmin = address && address.toLowerCase() === ADMIN_ADDRESS;
     return (
       <div className="mx-auto max-w-md px-4 py-16">
@@ -141,8 +150,8 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
           <p className="m-0 text-[13px] leading-[1.6] text-[#8b96a5] mb-5">
             Connect the wallet at{" "}
             <span className="mono text-[#f3f4f6]">{shortenAddress(ADMIN_ADDRESS || "0x0")}</span>{" "}
-            and sign a message. The signature is verified on the server before any
-            admin metrics, creation tools, or resolution controls load.
+            and sign a short message. The signature proves you hold the private key for
+            this address — no gas, no transaction.
           </p>
 
           {!isConnected ? (
@@ -172,20 +181,20 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
           )}
 
           <p className="mt-4 mono text-[10px] tracking-[0.1em] uppercase text-[#6b7280] text-center">
-            Session lasts 4 hours · signature is free (no gas)
+            Proof stored in this tab only · clears when you close it
           </p>
         </div>
       </div>
     );
   }
 
-  // state === "signed-in"
-  const mismatch = sessionAddr && address && sessionAddr.toLowerCase() !== address.toLowerCase();
+  // Authed
+  const mismatch = address && proof.address.toLowerCase() !== address.toLowerCase();
   return (
     <>
       {mismatch && (
         <div className="mx-4 sm:mx-6 lg:mx-8 my-3 rounded-[4px] border border-[#f59e0b]/40 bg-[#f59e0b]/10 p-3 text-[12px] text-[#f59e0b]">
-          Signed in as {shortenAddress(sessionAddr ?? "")} but connected wallet is{" "}
+          Signed in as {shortenAddress(proof.address)} but connected wallet is{" "}
           {shortenAddress(address ?? "")}. On-chain writes use the connected wallet;
           sign out and sign in again with the correct wallet.
         </div>
@@ -198,7 +207,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
           <LogOut className="h-[11px] w-[11px]" />
           Sign out
           <span className="text-[#3a4250]">·</span>
-          <span>{shortenAddress(sessionAddr ?? "")}</span>
+          <span>{shortenAddress(proof.address)}</span>
         </button>
       </div>
       {children}
