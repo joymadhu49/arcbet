@@ -14,7 +14,6 @@ import {
   Flame,
   Landmark,
   Loader2,
-  Lock,
   Plus,
   RefreshCw,
   Shield,
@@ -23,11 +22,11 @@ import {
   Zap,
 } from "lucide-react";
 
+import AdminGate from "@/components/AdminGate";
 import { AiMarketCreator } from "@/components/AiMarketCreator";
 import NetworkGate, { useChainGate } from "@/components/NetworkGate";
 import TxBanner from "@/components/TxBanner";
 import { usePrices } from "@/components/PriceProvider";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useAllMarketAddresses, useMarketData } from "@/hooks/useMarkets";
 import { ERC20_ABI, MARKET_FACTORY_ABI } from "@/lib/abi";
 import { arcTestnet } from "@/lib/chains";
@@ -719,8 +718,7 @@ function CustomCreator({
 // ──────────────────────────────────────────────────────────────────────────
 // Page
 // ──────────────────────────────────────────────────────────────────────────
-export default function AdminPage() {
-  const isAdmin = useIsAdmin();
+function AdminDashboard() {
   const { address } = useAccount();
   const { wrongChain, isConnected } = useChainGate();
   const { data: addresses, isLoading, refetch } = useAllMarketAddresses();
@@ -857,18 +855,6 @@ export default function AdminPage() {
   const daysInCycle = cycleEnd.getDate();
   const cycleDay = new Date().getDate();
   const cycleProgress = (cycleDay / daysInCycle) * 100;
-
-  if (!isAdmin) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-24 text-center">
-        <Lock className="mx-auto mb-4 h-12 w-12 text-[#363d4b]" />
-        <h2 className="mb-2 text-[15px] font-semibold text-[#f3f4f6]">Not Found</h2>
-        <p className="text-[13px] text-[#8b96a5]">
-          This page doesn&apos;t exist, or your wallet isn&apos;t authorised.
-        </p>
-      </div>
-    );
-  }
 
   const writesDisabled = !isConnected || wrongChain || ownerMismatch;
   const resolvedShare = loadedEntries.length === 0 ? 0 : (resolvedEntries.length / loadedEntries.length) * 100;
@@ -1312,3 +1298,14 @@ export default function AdminPage() {
 }
 
 void buildCryptoQuestion;
+
+// Default export wraps the dashboard in AdminGate. AdminGate hides every
+// admin metric + control until the server has verified a signed-message
+// session from the configured admin wallet.
+export default function AdminPage() {
+  return (
+    <AdminGate>
+      <AdminDashboard />
+    </AdminGate>
+  );
+}
