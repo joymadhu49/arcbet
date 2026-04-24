@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   useWriteContract,
   useReadContract,
   useAccount,
   usePublicClient,
 } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { parseUSDC } from "@/lib/utils";
 import { USDC_ADDRESS } from "@/lib/constants";
@@ -24,8 +25,20 @@ function withSlippage(expected: bigint, bps: bigint = SLIPPAGE_BPS): bigint {
 export function useBet(marketAddress: `0x${string}`) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<"idle" | "approving" | "buying" | "selling" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  /** Invalidate every wagmi read-contract query so positions, balances,
+   *  shares, and pool reserves refresh everywhere after a write. */
+  const invalidateAllReads = useCallback(() => {
+    queryClient.invalidateQueries({
+      predicate: (q) => {
+        const key = q.queryKey?.[0];
+        return typeof key === "string" && key.startsWith("readContract");
+      },
+    });
+  }, [queryClient]);
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: USDC_ADDRESS,
@@ -91,6 +104,7 @@ export function useBet(marketAddress: `0x${string}`) {
       setStep("done");
       toast.success(`${side} shares bought`, { id: "bet" });
       await refetchBalance();
+      invalidateAllReads();
       setTimeout(() => setStep("idle"), 1500);
     } catch (e: unknown) {
       const msg = txErrorMessage(e);
@@ -139,6 +153,7 @@ export function useBet(marketAddress: `0x${string}`) {
       setStep("done");
       toast.success(`${side} shares sold`, { id: "bet" });
       await refetchBalance();
+      invalidateAllReads();
       setTimeout(() => setStep("idle"), 1500);
     } catch (e: unknown) {
       const msg = txErrorMessage(e);
@@ -160,6 +175,7 @@ export function useBet(marketAddress: `0x${string}`) {
       if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success("Winnings claimed", { id: "claim" });
       await refetchBalance();
+      invalidateAllReads();
     } catch (e: unknown) {
       const msg = txErrorMessage(e);
       setError(msg);

@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useWriteContract, usePublicClient, useReadContract } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useAllMarketAddresses,
   useMarketData,
@@ -9,7 +10,7 @@ import {
   usePreviewPayout,
 } from "@/hooks/useMarkets";
 import { shortenAddress, seededSparkline } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useBet } from "@/hooks/useBet";
 import { MarketData } from "@/types";
@@ -36,6 +37,22 @@ interface Position {
   status: "open" | "claimable" | "claimed" | "resolved-win" | "resolved-loss";
 }
 
+/** Extract (yesShares, noShares) from the raw `getUserShares` return value.
+ *  viem's output shape can be either a tuple `[bigint, bigint]` or an object
+ *  `{yes, no}` depending on ABI-type inference, so we handle both and also
+ *  tolerate it being undefined while the query is in flight. */
+function extractShares(raw: unknown): [bigint, bigint] {
+  if (!raw) return [0n, 0n];
+  if (Array.isArray(raw)) {
+    return [raw[0] ?? 0n, raw[1] ?? 0n];
+  }
+  if (typeof raw === "object") {
+    const o = raw as { yes?: bigint; no?: bigint };
+    return [o.yes ?? 0n, o.no ?? 0n];
+  }
+  return [0n, 0n];
+}
+
 function PositionLoader({
   marketAddress,
   userAddress,
@@ -53,11 +70,15 @@ function PositionLoader({
     abi: PREDICTION_MARKET_ABI,
     functionName: "claimed",
     args: [userAddress],
-    query: { enabled: !!userAddress },
+    query: {
+      enabled: !!userAddress,
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      staleTime: 5_000,
+    },
   });
 
-  const userYes = shares ? (shares as [bigint, bigint])[0] : 0n;
-  const userNo = shares ? (shares as [bigint, bigint])[1] : 0n;
+  const [userYes, userNo] = extractShares(shares);
   const hasShares = userYes > 0n || userNo > 0n;
   const alreadyClaimed = Boolean(claimedFlag);
 
@@ -583,6 +604,9 @@ function PortfolioContent({ userAddress }: { userAddress: `0x${string}` }) {
 
 export default function PortfolioPage() {
   const { address, isConnected } = useAccount();
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
   const onCopyUsdc = () => {
     navigator.clipboard.writeText(USDC_ADDRESS).then(() => {
       toast.success("USDC address copied", {
@@ -590,6 +614,22 @@ export default function PortfolioPage() {
       });
     });
   };
+
+  // Hard-refresh every read-contract query so new positions appear immediately.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey?.[0];
+          return typeof key === "string" && key.startsWith("readContract");
+        },
+      });
+      toast.success("Positions refreshed");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient]);
 
   return (
     <div className="bg-[#0b0e12]">
@@ -610,7 +650,15 @@ export default function PortfolioPage() {
             </div>
           </div>
           {isConnected && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={onRefresh}
+                disabled={refreshing}
+                className="bg-transparent border border-[#1f2630] text-[#f3f4f6] px-[14px] py-[8px] rounded-[4px] cursor-pointer text-[12px] font-medium hover:border-[#2a3340] transition-colors disabled:opacity-50 flex items-center gap-[6px]"
+              >
+                <RefreshCw className={`h-[12px] w-[12px] ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
               <button
                 onClick={onCopyUsdc}
                 className="bg-transparent border border-[#1f2630] text-[#f3f4f6] px-[14px] py-[8px] rounded-[4px] cursor-pointer text-[12px] font-medium hover:border-[#2a3340] transition-colors"

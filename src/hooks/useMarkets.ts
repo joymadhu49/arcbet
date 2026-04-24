@@ -27,6 +27,11 @@ export function useAllMarketAddresses() {
     address: FACTORY_ADDRESS,
     abi: MARKET_FACTORY_ABI,
     functionName: "getAllMarkets",
+    // Refetch periodically so newly-created markets show up without a full page reload.
+    query: {
+      refetchInterval: 30_000,
+      refetchOnWindowFocus: true,
+    },
   });
 }
 
@@ -41,6 +46,9 @@ export function useMarketData(address: `0x${string}`) {
       { address, abi: PREDICTION_MARKET_ABI, functionName: "noReserve" },
     ],
     query: {
+      // Refresh on tab focus so positions update after a round-trip through
+      // the market page (buy/sell) without a manual reload.
+      refetchOnWindowFocus: true,
       refetchInterval: false,
     },
   });
@@ -84,7 +92,14 @@ export function useUserShares(marketAddress: `0x${string}`, userAddress?: `0x${s
     abi: PREDICTION_MARKET_ABI,
     functionName: "getUserShares",
     args: userAddress ? [userAddress] : undefined,
-    query: { enabled: !!userAddress },
+    query: {
+      enabled: !!userAddress,
+      // Portfolio correctness matters more than RPC chatter here — if you just
+      // bought on another page, tabbing back should show the position.
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      staleTime: 5_000,
+    },
   });
 }
 
@@ -94,7 +109,12 @@ export function usePreviewPayout(marketAddress: `0x${string}`, userAddress?: `0x
     abi: PREDICTION_MARKET_ABI,
     functionName: "previewPayout",
     args: userAddress ? [userAddress] : undefined,
-    query: { enabled: !!userAddress },
+    query: {
+      enabled: !!userAddress,
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      staleTime: 5_000,
+    },
   });
 }
 
