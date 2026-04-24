@@ -16,11 +16,19 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    // Arc Testnet — verified from https://docs.arc.network/arc/references/connect-to-arc
-    // Chain ID: 5042002 · Native gas: USDC (not ETH)
+    // Arc Testnet — Chain ID: 5042002 · Native gas: USDC (not ETH)
+    // Primary endpoint resolution order (first non-empty wins):
+    //   1. ARC_TESTNET_RPC / NEXT_PUBLIC_ARC_RPC  (explicit override)
+    //   2. drpc public endpoint (higher score on chainlist)
+    //   3. official Arc testnet RPC (fallback)
+    // Hardhat only uses one URL per network — the frontend wagmi config does
+    // proper multi-RPC fallback via viem's fallback() transport.
     arcTestnet: {
       type: "http",
-      url: process.env.ARC_TESTNET_RPC || "https://rpc.testnet.arc.network",
+      url:
+        process.env.ARC_TESTNET_RPC ||
+        process.env.NEXT_PUBLIC_ARC_RPC ||
+        "https://arc-testnet.drpc.org",
       chainId: 5042002,
       accounts: [PRIVATE_KEY],
     },
