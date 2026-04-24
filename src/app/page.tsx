@@ -125,7 +125,7 @@ export default function Home() {
 
       {/* Search header */}
       <div className="border-b border-[#1f2630] px-4 sm:px-6 lg:px-8 pt-7 pb-5">
-        <div className="flex items-baseline gap-[14px] mb-[18px]">
+        <div className="flex items-baseline gap-[14px] mb-[18px] flex-wrap">
           <h1 className="m-0 text-[22px] font-semibold tracking-[-0.4px] text-[#f3f4f6]">Markets</h1>
           <div className="mono label text-[#6b7280]">
             {openMarkets} active · {fmtUSDCCompact(totalVolume)} volume

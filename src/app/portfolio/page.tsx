@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useWriteContract, usePublicClient } from "wagmi";
+import { useAccount, useWriteContract, usePublicClient, useReadContract } from "wagmi";
 import {
   useAllMarketAddresses,
   useMarketData,
@@ -32,7 +32,8 @@ interface Position {
   noOdds?: bigint;
   claimable: boolean;
   resolved: boolean;
-  status: "open" | "claimable" | "resolved-win" | "resolved-loss";
+  alreadyClaimed: boolean;
+  status: "open" | "claimable" | "claimed" | "resolved-win" | "resolved-loss";
 }
 
 function PositionLoader({
@@ -47,10 +48,18 @@ function PositionLoader({
   const { market, yesOdds, noOdds } = useMarketData(marketAddress);
   const { data: shares } = useUserShares(marketAddress, userAddress);
   const { data: payout } = usePreviewPayout(marketAddress, userAddress);
+  const { data: claimedFlag } = useReadContract({
+    address: marketAddress,
+    abi: PREDICTION_MARKET_ABI,
+    functionName: "claimed",
+    args: [userAddress],
+    query: { enabled: !!userAddress },
+  });
 
   const userYes = shares ? (shares as [bigint, bigint])[0] : 0n;
   const userNo = shares ? (shares as [bigint, bigint])[1] : 0n;
   const hasShares = userYes > 0n || userNo > 0n;
+  const alreadyClaimed = Boolean(claimedFlag);
 
   const fp = market
     ? [
@@ -60,6 +69,7 @@ function PositionLoader({
         userYes.toString(),
         userNo.toString(),
         (payout as bigint | undefined)?.toString() ?? "",
+        alreadyClaimed ? 1 : 0,
       ].join("|")
     : "";
 
@@ -78,6 +88,7 @@ function PositionLoader({
 
     let status: Position["status"];
     if (!market.resolved) status = "open";
+    else if (alreadyClaimed) status = "claimed";
     else if (payoutVal > 0n) status = "claimable";
     else if (market.outcome === side) status = "resolved-win";
     else status = "resolved-loss";
@@ -90,8 +101,9 @@ function PositionLoader({
       payout: payoutVal,
       yesOdds,
       noOdds,
-      claimable: market.resolved && payoutVal > 0n,
+      claimable: market.resolved && payoutVal > 0n && !alreadyClaimed,
       resolved: market.resolved,
+      alreadyClaimed,
       status,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -154,8 +166,10 @@ function PositionRow({ p, i }: { p: Position; i: number }) {
     );
   } else if (p.status === "claimable") {
     statusNode = <ClaimButton address={p.marketAddress} />;
+  } else if (p.status === "claimed") {
+    statusNode = <span className="mono text-[11px] text-[#22c55e]">✓ Claimed</span>;
   } else if (p.status === "resolved-win") {
-    statusNode = <span className="mono text-[11px] text-[#22c55e]">✓ Won · Claimed</span>;
+    statusNode = <span className="mono text-[11px] text-[#22c55e]">✓ Won</span>;
   } else {
     statusNode = <span className="mono text-[11px] text-[#ef4444]">✕ Lost</span>;
   }
@@ -352,7 +366,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
     if (filter === "claimable") return positions.filter((p) => p.status === "claimable");
     if (filter === "resolved")
       return positions.filter(
-        (p) => p.status === "resolved-win" || p.status === "resolved-loss",
+        (p) => p.status === "resolved-win" || p.status === "resolved-loss" || p.status === "claimed",
       );
     return positions;
   }, [positions, filter]);
@@ -370,7 +384,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
       k: "resolved",
       label: "Resolved",
       count: positions.filter(
-        (p) => p.status === "resolved-win" || p.status === "resolved-loss",
+        (p) => p.status === "resolved-win" || p.status === "resolved-loss" || p.status === "claimed",
       ).length,
     },
   ];
@@ -435,26 +449,30 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
         </button>
       </div>
 
-      {/* Table header */}
-      <div
-        className="mono grid gap-[10px] text-[10px] uppercase tracking-[0.14em] text-[#6b7280] px-[18px] py-[10px] border-b border-[#1f2630] bg-[#0f141b]"
-        style={{ gridTemplateColumns: "1.8fr 72px 100px 120px 120px 170px" }}
-      >
-        <span>Market</span>
-        <span>Side</span>
-        <span className="text-right">Shares</span>
-        <span className="text-right">Current</span>
-        <span className="text-right">Est. payout</span>
-        <span className="text-right">Status</span>
-      </div>
+      {/* Scrollable table: the row grid needs >= 720px to read well; scroll on mobile */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[720px]">
+          <div
+            className="mono grid gap-[10px] text-[10px] uppercase tracking-[0.14em] text-[#6b7280] px-[18px] py-[10px] border-b border-[#1f2630] bg-[#0f141b]"
+            style={{ gridTemplateColumns: "1.8fr 72px 100px 120px 120px 170px" }}
+          >
+            <span>Market</span>
+            <span>Side</span>
+            <span className="text-right">Shares</span>
+            <span className="text-right">Current</span>
+            <span className="text-right">Est. payout</span>
+            <span className="text-right">Status</span>
+          </div>
 
-      {filtered.length === 0 ? (
-        <div className="py-10 text-center text-[12.5px] text-[#6b7280]">
-          No positions match this filter.
+          {filtered.length === 0 ? (
+            <div className="py-10 text-center text-[12.5px] text-[#6b7280]">
+              No positions match this filter.
+            </div>
+          ) : (
+            filtered.map((p, i) => <PositionRow key={p.marketAddress} p={p} i={i} />)
+          )}
         </div>
-      ) : (
-        filtered.map((p, i) => <PositionRow key={p.marketAddress} p={p} i={i} />)
-      )}
+      </div>
     </div>
   );
 }

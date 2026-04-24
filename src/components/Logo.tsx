@@ -10,7 +10,7 @@ export default function Logo({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <>
           <span className="text-[15px] font-bold tracking-[-0.2px] text-[#f3f4f6]">PROPEX</span>
-          <span className="mono text-[10px] uppercase tracking-[0.1em] text-[#6b7280] ml-[2px]">{"// v0.1"}</span>
+          <span className="mono text-[10px] uppercase tracking-[0.1em] text-[#6b7280] ml-[2px] hidden sm:inline">{"// v0.1"}</span>
         </>
       )}
     </div>
