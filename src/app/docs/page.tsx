@@ -21,7 +21,6 @@ const SECTIONS: Section[] = [
   { id: "resolution", title: "Resolution" },
   { id: "contracts", title: "Contracts" },
   { id: "leaderboard", title: "Leaderboard" },
-  { id: "admin", title: "Admin & launches" },
   { id: "faq", title: "FAQ" },
   { id: "support", title: "Support" },
   { id: "terms", title: "Terms" },
@@ -205,18 +204,6 @@ export default function DocsPage() {
               The <Link href="/leaderboard" className="text-[#2d9cdb] hover:underline">leaderboard</Link>{" "}
               ranks traders by realized PnL across resolved markets. Data is derived
               entirely from on-chain events — no off-chain scoring or boosts.
-            </p>
-          </Section>
-
-          <Section id="admin" title="Admin & launches">
-            <p>
-              New markets are launched in a daily batch by the admin wallet through the{" "}
-              <Link href="/admin" className="text-[#2d9cdb] hover:underline">
-                admin panel
-              </Link>
-              . Each launch seeds USDC liquidity from the treasury and registers the
-              market with the factory. The admin role is a client-side UX gate; on-chain
-              authority is enforced by <Code>MarketFactory.owner</Code>.
             </p>
           </Section>
 
