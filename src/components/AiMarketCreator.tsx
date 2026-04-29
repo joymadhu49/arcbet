@@ -48,6 +48,7 @@ export function AiMarketCreator({
   const [editQuestion, setEditQuestion] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDays, setEditDays] = useState(7);
+  const [editImageUrl, setEditImageUrl] = useState("");
 
   async function propose(text: string) {
     const trimmed = text.trim();
@@ -73,6 +74,7 @@ export function AiMarketCreator({
       setEditQuestion(p.question);
       setEditDescription(p.description);
       setEditDays(p.resolutionDays);
+      setEditImageUrl(p.imageUrl || (p.crypto ? coinImage(p.crypto.coin) : ""));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
@@ -93,7 +95,7 @@ export function AiMarketCreator({
       const resolutionTime = BigInt(nowSec + Math.round(editDays * 86_400));
 
       let description = editDescription;
-      let imageUrl = proposal.imageUrl;
+      let imageUrl = editImageUrl.trim();
 
       if (proposal.crypto) {
         const coin = COIN_BY_ID[proposal.crypto.coin];
@@ -125,6 +127,7 @@ export function AiMarketCreator({
       setEditQuestion("");
       setEditDescription("");
       setEditDays(7);
+      setEditImageUrl("");
       onCreated();
     } catch (e: unknown) {
       const msg = txErrorMessage(e);
@@ -226,6 +229,29 @@ export function AiMarketCreator({
               rows={4}
               className="w-full resize-none rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] focus:border-[#2d9cdb] focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block mono label">Image URL</label>
+            <div className="flex gap-2">
+              {editImageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={editImageUrl}
+                  alt=""
+                  onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+                  onLoad={(ev) => { (ev.currentTarget as HTMLImageElement).style.visibility = "visible"; }}
+                  className="h-9 w-9 rounded-[4px] border border-[#1f2630] bg-[#0b0e12] object-cover"
+                />
+              )}
+              <input
+                type="url"
+                value={editImageUrl}
+                onChange={(e) => setEditImageUrl(e.target.value)}
+                placeholder="https://… (optional)"
+                className="w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none"
+              />
+            </div>
           </div>
 
           <div>
