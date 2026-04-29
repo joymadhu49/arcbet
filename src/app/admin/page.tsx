@@ -716,6 +716,147 @@ function CustomCreator({
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Treasury top-up: send USDC from connected admin wallet to the treasury.
+// ──────────────────────────────────────────────────────────────────────────
+function TreasuryTopUp({
+  treasuryAddress,
+  treasuryBalance,
+  disabled,
+  onSent,
+  onError,
+}: {
+  treasuryAddress: `0x${string}`;
+  treasuryBalance: bigint | undefined;
+  disabled: boolean;
+  onSent: () => void;
+  onError: (msg: string | null) => void;
+}) {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
+  const [amount, setAmount] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const { data: walletBalance, refetch: refetchWallet } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [address ?? "0x0000000000000000000000000000000000000000"],
+    query: {
+      enabled:
+        !!address &&
+        USDC_ADDRESS !== "0x0000000000000000000000000000000000000000",
+    },
+  });
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onError(null);
+    if (!address) {
+      onError("Connect your admin wallet first.");
+      return;
+    }
+    const num = Number(amount);
+    if (!Number.isFinite(num) || num <= 0) {
+      onError("Enter a positive USDC amount.");
+      return;
+    }
+    const units = BigInt(Math.floor(num * 1e6));
+    if (units === 0n) {
+      onError("Amount too small (min 0.000001 USDC).");
+      return;
+    }
+    if (walletBalance !== undefined && (walletBalance as bigint) < units) {
+      const have = Number(walletBalance as bigint) / 1e6;
+      onError(`Wallet has ${have.toFixed(2)} USDC, need ${num} USDC.`);
+      return;
+    }
+    setSending(true);
+    try {
+      toast.loading(`Sending ${num} USDC to treasury…`, { id: "topup" });
+      const hash = await writeContractAsync({
+        address: USDC_ADDRESS,
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [treasuryAddress, units],
+      });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      toast.success(`Treasury topped up with ${num} USDC`, { id: "topup" });
+      setAmount("");
+      onSent();
+      refetchWallet();
+    } catch (e) {
+      const msg = txErrorMessage(e);
+      onError(msg);
+      toast.error(msg, { id: "topup" });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const walletStr =
+    walletBalance !== undefined ? `${(Number(walletBalance as bigint) / 1e6).toFixed(2)}` : "—";
+  const treasuryStr =
+    treasuryBalance !== undefined ? `${(Number(treasuryBalance) / 1e6).toFixed(2)}` : "—";
+  const setMax = () => {
+    if (walletBalance === undefined) return;
+    setAmount((Number(walletBalance as bigint) / 1e6).toString());
+  };
+
+  return (
+    <form onSubmit={submit} className="pt-[16px] border-t border-[#1f2630]">
+      <div className="flex items-baseline justify-between mb-[10px]">
+        <div className="mono label">Top up treasury</div>
+        <div className="mono text-[10px] text-[#6b7280]">
+          wallet {walletStr} · treasury {treasuryStr}
+        </div>
+      </div>
+      <div className="flex gap-[6px]">
+        <div className="relative flex-1">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            onChange={(ev) => setAmount(ev.target.value)}
+            disabled={disabled || sending}
+            className="w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] pl-3 pr-[52px] py-[9px] text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={setMax}
+            disabled={disabled || sending || walletBalance === undefined}
+            className="absolute right-2 top-1/2 -translate-y-1/2 mono text-[10px] text-[#8b96a5] hover:text-[#f3f4f6] disabled:opacity-40"
+          >
+            MAX
+          </button>
+        </div>
+        <button
+          type="submit"
+          disabled={disabled || sending || !amount}
+          className="flex items-center gap-1.5 rounded-[3px] bg-[#1f2630] hover:bg-[#2a3340] px-4 py-[9px] text-[12px] font-semibold text-[#f3f4f6] transition-colors disabled:opacity-50"
+        >
+          {sending ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending…
+            </>
+          ) : (
+            <>
+              <ArrowRight className="h-3.5 w-3.5" /> Deposit
+            </>
+          )}
+        </button>
+      </div>
+      <div className="mono text-[10px] text-[#6b7280] mt-[8px]">
+        Sends USDC from {shortenAddress(address ?? "0x0")} → {shortenAddress(treasuryAddress)} on Arc testnet.
+      </div>
+    </form>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Page
 // ──────────────────────────────────────────────────────────────────────────
 function AdminDashboard() {
@@ -1101,6 +1242,14 @@ function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            <TreasuryTopUp
+              treasuryAddress={treasuryAddress}
+              treasuryBalance={treasuryBalance as bigint | undefined}
+              disabled={!isConnected || wrongChain}
+              onSent={() => refetchTreasuryBalance()}
+              onError={setBannerError}
+            />
 
             <div className="py-[16px] border-t border-[#1f2630]">
               <div className="mono label mb-2">Largest market</div>
