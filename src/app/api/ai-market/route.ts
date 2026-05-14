@@ -58,69 +58,86 @@ export async function POST(req: NextRequest): Promise<Response> {
         .map((q) => q.trim())
         .slice(0, 60)
     : [];
-  const system = buildSystemPrompt(nowIso, body.coinPrices ?? null, existingQuestions);
+  const built = buildSystemPrompt(nowIso, body.coinPrices ?? null, existingQuestions);
 
-  const upstream = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.OPENROUTER_REFERER || "http://localhost:3000",
-      "X-Title": "Propex",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: instruction },
-      ],
-      // Not every model honours response_format; strict system prompt is the fallback.
-      response_format: { type: "json_object" },
-      // Higher temperature + top_p so repeated calls produce distinct phrasing.
-      temperature: 0.95,
-      top_p: 0.95,
-    }),
-    cache: "no-store",
-  }).catch((e: unknown) => {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 502 });
-  });
+  async function callModel(systemPrompt: string): Promise<{ proposal?: AiMarketProposal; errorResp?: Response }> {
+    const upstream = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_REFERER || "http://localhost:3000",
+        "X-Title": "Propex",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: instruction },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.95,
+        top_p: 0.95,
+      }),
+      cache: "no-store",
+    }).catch((e: unknown) => {
+      return new Response(JSON.stringify({ error: String(e) }), { status: 502 });
+    });
 
-  if (!upstream.ok) {
-    const text = await upstream.text().catch(() => "");
-    return json<AiMarketResponse>(
-      { error: `OpenRouter ${upstream.status}: ${text.slice(0, 500) || "upstream error"}` },
-      502,
-    );
+    if (!upstream.ok) {
+      const text = await upstream.text().catch(() => "");
+      return {
+        errorResp: json<AiMarketResponse>(
+          { error: `OpenRouter ${upstream.status}: ${text.slice(0, 500) || "upstream error"}` },
+          502,
+        ),
+      };
+    }
+
+    let content: string | undefined;
+    try {
+      const data = (await upstream.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      content = data?.choices?.[0]?.message?.content;
+    } catch {
+      return { errorResp: json<AiMarketResponse>({ error: "OpenRouter returned non-JSON response" }, 502) };
+    }
+
+    if (!content) {
+      return { errorResp: json<AiMarketResponse>({ error: "OpenRouter returned empty completion" }, 502) };
+    }
+
+    const parsed = safeParseJson(content);
+    if (!parsed) {
+      return {
+        errorResp: json<AiMarketResponse>(
+          { error: "AI response was not valid JSON. Try again with a simpler instruction." },
+          502,
+        ),
+      };
+    }
+
+    try {
+      return { proposal: validateProposal(parsed) };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { errorResp: json<AiMarketResponse>({ error: `Schema validation failed: ${msg}` }, 502) };
+    }
   }
 
-  let content: string | undefined;
-  try {
-    const data = (await upstream.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    content = data?.choices?.[0]?.message?.content;
-  } catch {
-    return json<AiMarketResponse>({ error: "OpenRouter returned non-JSON response" }, 502);
-  }
+  const first = await callModel(built.prompt);
+  if (first.errorResp) return first.errorResp;
+  let proposal = first.proposal!;
 
-  if (!content) {
-    return json<AiMarketResponse>({ error: "OpenRouter returned empty completion" }, 502);
-  }
-
-  const parsed = safeParseJson(content);
-  if (!parsed) {
-    return json<AiMarketResponse>(
-      { error: "AI response was not valid JSON. Try again with a simpler instruction." },
-      502,
-    );
-  }
-
-  let proposal: AiMarketProposal;
-  try {
-    proposal = validateProposal(parsed);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return json<AiMarketResponse>({ error: `Schema validation failed: ${msg}` }, 502);
+  const startsWithWill = /^\s*Will\b/i.test(proposal.question);
+  if (built.willForbidden && startsWithWill) {
+    // Retry once with stronger constraint.
+    const retryPrompt = `${built.prompt}\n\nPREVIOUS ATTEMPT FAILED — its "question" started with "Will". You MUST NOT start the question with "Will". Rewrite the same factual market using the REQUIRED OPENER above.`;
+    const second = await callModel(retryPrompt);
+    if (!second.errorResp && second.proposal && !/^\s*Will\b/i.test(second.proposal.question)) {
+      proposal = second.proposal;
+    }
   }
 
   return json<AiMarketResponse>({ proposal }, 200);

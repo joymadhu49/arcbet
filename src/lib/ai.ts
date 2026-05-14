@@ -57,17 +57,77 @@ const STYLE_HINTS = [
   "data-forward and minimal",
 ] as const;
 
-/** Phrasing-opener variants to actively rotate (avoid every question starting with 'Will'). */
-const OPENER_HINTS = [
-  "vary the opener — try forms like 'Does …', 'Can …', 'By <date>, will …', 'Is … going to …', not just 'Will …'",
-  "lead with a noun or subject ('SOL above $280 by Friday?') rather than 'Will'",
-  "start with a time clause ('By end of week, …') for at least this proposal",
-  "phrase as a milestone check ('Hits $150k before …?')",
-  "open with the actor/entity, not the auxiliary verb",
+/**
+ * Mandatory opener forms. One is picked per call and the model MUST use it.
+ * Each entry: { label, example, regex the question must match (case-insensitive). }
+ */
+const OPENER_FORMS = [
+  {
+    label: "Does <subject> <verb> …?",
+    example: "Does ARC hit 200k followers by May 31, 2026?",
+    pattern: "^Does\\s+\\S+",
+  },
+  {
+    label: "Can <subject> …?",
+    example: "Can SOL break $300 before week's end?",
+    pattern: "^Can\\s+\\S+",
+  },
+  {
+    label: "Is <subject> going to …?",
+    example: "Is Bitcoin going to clear $150k this month?",
+    pattern: "^Is\\s+\\S+",
+  },
+  {
+    label: "By <date>, <clause>?",
+    example: "By May 31, 2026, has ARC crossed 200k followers?",
+    pattern: "^By\\s+\\S+",
+  },
+  {
+    label: "Has <subject> <past-participle> by <date>?",
+    example: "Has ARC reached 200k followers by May 31?",
+    pattern: "^Has\\s+\\S+",
+  },
+  {
+    label: "<Subject> <metric> by <date>?  (no auxiliary opener)",
+    example: "ARC at 200k followers by May 31, 2026?",
+    pattern: "^(?!Will\\b|Does\\b|Can\\b|Is\\b|By\\b|Has\\b|Are\\b|Do\\b)\\S+",
+  },
+  {
+    label: "Are <subjects> …?",
+    example: "Are the Lakers winning their next game?",
+    pattern: "^Are\\s+\\S+",
+  },
+  {
+    label: "Hits <threshold> before <date>?",
+    example: "Hits $150k before May 31?",
+    pattern: "^Hits\\s+\\S+",
+  },
+  {
+    label: "Will <subject> …?  (only allowed occasionally)",
+    example: "Will ETH close above $2,500 by Friday?",
+    pattern: "^Will\\s+\\S+",
+  },
 ] as const;
 
 function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/** Pick an opener, heavily biased away from "Will" when existing markets already overuse it. */
+function pickOpener(existingQuestions: string[]): (typeof OPENER_FORMS)[number] {
+  const willCount = existingQuestions.filter((q) => /^\s*Will\b/i.test(q)).length;
+  const willRatio = existingQuestions.length === 0 ? 0 : willCount / existingQuestions.length;
+  const nonWill = OPENER_FORMS.filter((o) => !o.label.startsWith("Will"));
+  // If >40% of existing already start with "Will", forbid it this call.
+  if (willRatio > 0.4) return pick(nonWill);
+  // Otherwise 90% non-Will, 10% Will to keep some natural mix.
+  return Math.random() < 0.9 ? pick(nonWill) : OPENER_FORMS[OPENER_FORMS.length - 1];
+}
+
+export interface SystemPromptBuild {
+  prompt: string;
+  willForbidden: boolean;
+  openerLabel: string;
 }
 
 /** Build the system prompt. `nowIso` is injected server-side each call. */
@@ -75,7 +135,7 @@ export function buildSystemPrompt(
   nowIso: string,
   coinPrices: PriceMap | null,
   existingQuestions: string[] = [],
-): string {
+): SystemPromptBuild {
   const priceLines = coinPrices
     ? Object.entries(coinPrices)
         .map(([id, p]) => `- ${id}: $${p?.usd ?? "?"}`)
@@ -91,16 +151,20 @@ export function buildSystemPrompt(
       : "- (no prior markets)";
 
   const style = pick(STYLE_HINTS);
-  const opener = pick(OPENER_HINTS);
+  const opener = pickOpener(existingQuestions);
   const nonce = Math.random().toString(36).slice(2, 8);
+  const willForbidden = !opener.label.startsWith("Will");
 
-  return `You are Propex's market-proposal engine. Given a free-form admin instruction,
+  const prompt = `You are Propex's market-proposal engine. Given a free-form admin instruction,
 you produce a JSON object describing a binary (YES/NO) prediction market.
 
 CURRENT DATE (UTC): ${nowIso}
 DIVERSITY NONCE: ${nonce}
 STYLE FOR THIS CALL: ${style}
-OPENER GUIDANCE FOR THIS CALL: ${opener}
+
+REQUIRED OPENER FOR THIS CALL: ${opener.label}
+EXAMPLE OF THIS OPENER: "${opener.example}"
+${willForbidden ? 'THE WORD "Will" IS FORBIDDEN AS THE FIRST WORD OF "question" THIS CALL.' : ""}
 
 TRACKED CRYPTO COINS (id -> live USD spot):
 ${priceLines}
@@ -127,7 +191,7 @@ JSON SCHEMA (return EXACTLY this shape, no extra keys, no markdown, no prose):
 RULES:
 - Output PURE JSON. No backticks, no markdown, no commentary.
 - UNIQUENESS: the "question" MUST be substantively different from every entry in the EXISTING MARKETS list above — different subject, threshold, timeframe, or framing. Do NOT paraphrase an existing market.
-- VARIETY: rotate phrasing across calls. Do not default to "Will X close above Y by Z?" every time. Use the OPENER GUIDANCE and STYLE for this call.
+- OPENER (HARD RULE): the first word(s) of "question" MUST match REQUIRED OPENER FOR THIS CALL. If the opener forbids "Will", then "question" must NOT begin with "Will". Re-phrase the same factual market under the required opener — do not change the underlying subject.
 - If the instruction is vague, still return a valid proposal but MAKE the resolution criteria tight and objective (e.g. "according to CoinGecko spot price on <ISO date>"). Pick a fresh subject the admin has not already covered (see EXISTING MARKETS).
 - If the instruction mentions a coin not in the tracked list, still pick category="Crypto" but omit the "crypto" key and write the resolution source explicitly into "description".
 - resolutionDays: map phrases like "today"->1, "this week"->7, "this month"->30. Default to 7 if unclear.
@@ -135,6 +199,8 @@ RULES:
 - Never invent dates in the past. Resolution is always in the future.
 - imageUrl for crypto should be the CoinGecko logo: https://assets.coingecko.com/coins/images/<n>/large/<name>.png — use "" if you are not certain of the exact URL; the server will populate it.
 `;
+
+  return { prompt, willForbidden, openerLabel: opener.label };
 }
 
 /** The 5 CoinGecko coin IDs we support in the `crypto` block. */
