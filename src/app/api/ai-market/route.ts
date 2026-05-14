@@ -52,7 +52,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
   const nowIso = new Date().toISOString();
-  const system = buildSystemPrompt(nowIso, body.coinPrices ?? null);
+  const existingQuestions = Array.isArray(body.existingQuestions)
+    ? body.existingQuestions
+        .filter((q): q is string => typeof q === "string" && q.trim().length > 0)
+        .map((q) => q.trim())
+        .slice(0, 60)
+    : [];
+  const system = buildSystemPrompt(nowIso, body.coinPrices ?? null, existingQuestions);
 
   const upstream = await fetch(OPENROUTER_URL, {
     method: "POST",
@@ -70,7 +76,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       ],
       // Not every model honours response_format; strict system prompt is the fallback.
       response_format: { type: "json_object" },
-      temperature: 0.4,
+      // Higher temperature + top_p so repeated calls produce distinct phrasing.
+      temperature: 0.95,
+      top_p: 0.95,
     }),
     cache: "no-store",
   }).catch((e: unknown) => {

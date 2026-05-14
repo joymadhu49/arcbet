@@ -981,6 +981,14 @@ function AdminDashboard() {
     return [...loadedEntries].sort((a, b) => Number(b.totalPool - a.totalPool))[0];
   }, [loadedEntries]);
 
+  const existingQuestions = useMemo(
+    () =>
+      loadedEntries
+        .map((e) => e.market.question)
+        .filter((q): q is string => typeof q === "string" && q.trim().length > 0),
+    [loadedEntries],
+  );
+
   const categoryMix = useMemo(() => {
     const totals = new Map<string, bigint>();
     for (const entry of loadedEntries) {
@@ -1391,6 +1399,7 @@ function AdminDashboard() {
                 onCreated={refetch}
                 disabled={writesDisabled}
                 onError={setBannerError}
+                existingQuestions={existingQuestions}
               />
               <DailyCreator
                 prices={prices}

@@ -31,11 +31,13 @@ export function AiMarketCreator({
   onCreated,
   disabled = false,
   onError,
+  existingQuestions,
 }: {
   prices: PriceMap | null;
   onCreated: () => void;
   disabled?: boolean;
   onError?: (msg: string | null) => void;
+  existingQuestions?: string[];
 }) {
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
@@ -59,7 +61,11 @@ export function AiMarketCreator({
     setError(null);
     setThinking(true);
     try {
-      const payload: AiMarketRequest = { instruction: trimmed, coinPrices: prices };
+      const payload: AiMarketRequest = {
+        instruction: trimmed,
+        coinPrices: prices,
+        existingQuestions: existingQuestions ?? [],
+      };
       const res = await fetch("/api/ai-market", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
