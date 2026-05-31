@@ -45,18 +45,19 @@ function MarketCard({ market, yesOdds, totalPool, livePrice }: Props) {
       className="block group"
     >
       <div
-        className="flex flex-col gap-[14px] rounded-[4px] border border-[#1f2630] bg-[#131820] p-4 transition-colors hover:border-[#2a3340]"
+        className="card-lift flex flex-col gap-[15px] rounded-[12px] border border-[#1f2630] bg-[#131820] p-4 sm:p-5 shadow-[var(--shadow-card)]"
       >
         <div className="flex items-start gap-3">
           <CoinIcon market={market} size={36} />
           <div className="flex-1 min-w-0">
-            <div className="flex gap-2 items-center mb-[6px]">
+            <div className="flex gap-2 items-center mb-[7px] flex-wrap">
               <CatBadge label={market.category || "Market"} />
               <span className="mono label text-[#6b7280]">ID · {shortId}</span>
             </div>
             <div
-              className="text-[14px] font-medium leading-[1.35] text-[#f3f4f6] line-clamp-2"
-              style={{ textWrap: "pretty" }}
+              className="text-[14px] font-medium leading-[1.35] text-[#f3f4f6] line-clamp-2 break-words"
+              style={{ textWrap: "pretty", overflowWrap: "anywhere" }}
+              title={market.question}
             >
               {market.question}
             </div>
@@ -64,10 +65,10 @@ function MarketCard({ market, yesOdds, totalPool, livePrice }: Props) {
         </div>
 
         <div className="flex items-end justify-between gap-[10px]">
-          <div>
-            <div className="label mb-[3px]">Yes chance</div>
-            <div className="flex items-baseline gap-[6px]">
-              <span className="mono text-[24px] font-semibold text-[#f3f4f6] tracking-[-0.5px]">
+          <div className="min-w-0">
+            <div className="label mb-[2px]">Yes chance</div>
+            <div className="flex items-baseline gap-[5px]">
+              <span className="mono text-[23px] sm:text-[26px] font-semibold text-[#f3f4f6] tracking-[-0.6px] leading-none">
                 {yPct.toFixed(0)}
               </span>
               <span className="mono text-[12px] text-[#8b96a5]">%</span>
@@ -84,41 +85,41 @@ function MarketCard({ market, yesOdds, totalPool, livePrice }: Props) {
         <OddsBar yes={yPct} />
 
         {cryptoMeta && livePrice !== undefined && (
-          <div className="flex items-center justify-between text-[11px] border-t border-dashed border-[#1f2630] pt-[8px] -mt-[4px]">
-            <span className="text-[#6b7280]">
+          <div className="flex items-center justify-between gap-2 text-[11px] border-t border-dashed border-[#1f2630] pt-[9px] -mt-[3px] flex-wrap">
+            <span className="text-[#6b7280] truncate">
               Live <span className="mono text-[#f3f4f6]">{formatUsd(livePrice)}</span>
             </span>
-            <span className="mono" style={{ color: trackingYes ? "#22c55e" : "#ef4444" }}>
+            <span className="mono truncate" style={{ color: trackingYes ? "#22c55e" : "#ef4444" }}>
               Target {formatUsd(cryptoMeta.targetUsd)}
             </span>
           </div>
         )}
 
-        <div
-          className="grid gap-2 pt-[10px] border-t border-dashed border-[#1f2630]"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr" }}
-        >
-          <div>
-            <div className="label">Vol</div>
-            <div className="mono text-[12px] text-[#f3f4f6] mt-[2px]">
-              {totalPool ? formatUSDC(totalPool) : "$0.00"}
+        <div className="pt-[12px] border-t border-dashed border-[#1f2630] flex flex-col gap-[14px]">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0">
+              <div className="label">Vol</div>
+              <div
+                className="mono text-[12px] text-[#f3f4f6] mt-[2px] truncate"
+                title={totalPool ? formatUSDC(totalPool) : "$0.00"}
+              >
+                {totalPool ? formatUSDC(totalPool) : "$0.00"}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="label">Ends</div>
+              <div className="mono text-[12px] text-[#f3f4f6] mt-[2px] truncate">
+                {statusLabel ? (
+                  <span style={{ color: statusLabel.color }}>{statusLabel.text}</span>
+                ) : (
+                  timeLeft(market.resolutionTime)
+                )}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="label">Ends</div>
-            <div className="mono text-[12px] text-[#f3f4f6] mt-[2px]">
-              {statusLabel ? (
-                <span style={{ color: statusLabel.color }}>{statusLabel.text}</span>
-              ) : (
-                timeLeft(market.resolutionTime)
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="inline-block bg-transparent border border-[#2a3340] text-[#f3f4f6] px-3 py-[6px] rounded-[3px] text-[11px] font-semibold tracking-[0.08em] uppercase group-hover:bg-[#1f2630] transition-colors">
-              Trade →
-            </span>
-          </div>
+          <span className="flex w-full items-center justify-center bg-[#0b0e12] border border-[#2a3340] text-[#f3f4f6] px-3 py-[12px] sm:py-[10px] rounded-[8px] text-[11px] font-semibold tracking-[0.08em] uppercase group-hover:bg-[#1f2630] group-hover:border-[var(--accent)] group-hover:text-white transition-all duration-150 ease-out min-h-[44px] sm:min-h-[40px] leading-[20px]">
+            Trade →
+          </span>
         </div>
       </div>
     </Link>

@@ -13,24 +13,25 @@ export default function TxBanner({ message, hint, onDismiss, tone = "error" }: P
   return (
     <div
       role="alert"
-      className="flex items-start gap-2 rounded-[4px] border px-3 py-[10px] text-[12px] bg-[#131820]"
+      className="animate-rise flex items-start gap-2.5 rounded-[8px] border px-3.5 py-3 text-[12px] bg-[#131820] shadow-[0_1px_2px_rgba(0,0,0,0.25)] w-full max-w-full overflow-hidden"
       style={{
         borderColor: `${color}55`,
+        backgroundColor: `${color}0d`,
         color: tone === "error" ? "#fca5a5" : "#fcd34d",
       }}
     >
-      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color }} />
+      <AlertTriangle className="h-4 w-4 mt-px shrink-0" style={{ color }} />
       <div className="flex-1 min-w-0">
-        <div className="break-words font-medium">{message}</div>
-        {hint && <div className="mt-0.5 text-[11px] opacity-80 break-words">{hint}</div>}
+        <div className="break-words font-medium leading-snug">{message}</div>
+        {hint && <div className="mt-1 text-[11px] opacity-80 break-words leading-snug">{hint}</div>}
       </div>
       {onDismiss && (
         <button
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="rounded-[3px] p-0.5 opacity-70 hover:opacity-100 transition-opacity"
+          className="shrink-0 inline-flex items-center justify-center h-[28px] w-[28px] -my-1 -mr-1.5 rounded-[6px] opacity-70 hover:opacity-100 hover:bg-white/5 transition-all duration-150 ease-out"
         >
-          <X className="h-3 w-3" />
+          <X className="h-4 w-4" />
         </button>
       )}
     </div>

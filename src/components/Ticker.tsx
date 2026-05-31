@@ -52,8 +52,8 @@ function TickerRow({ items, prices }: { items: TickEntry[]; prices: PriceMap | n
     nodes.push(
       <div key={`m-${e.address}`} className="mono flex items-center gap-2 text-[11px] whitespace-nowrap">
         <span className="tracking-[0.06em] text-[#8b96a5]">{key}</span>
-        <span className="text-[#f3f4f6]">{yPct.toFixed(0)}%</span>
-        <span style={{ color: up ? "#22c55e" : "#ef4444" }}>
+        <span className="font-medium text-[#f3f4f6]">{yPct.toFixed(0)}%</span>
+        <span className="font-medium" style={{ color: up ? "#22c55e" : "#ef4444" }}>
           {up ? "+" : ""}{delta}%
         </span>
       </div>,
@@ -67,7 +67,7 @@ function TickerRow({ items, prices }: { items: TickEntry[]; prices: PriceMap | n
     nodes.push(
       <div key={`c-${c.id}`} className="mono flex items-center gap-2 text-[11px] whitespace-nowrap">
         <span className="tracking-[0.06em] text-[#8b96a5]">{c.symbol}</span>
-        <span className="text-[#f3f4f6]">{formatUsd(p)}</span>
+        <span className="font-medium text-[#f3f4f6]">{formatUsd(p)}</span>
       </div>,
     );
   }
@@ -81,7 +81,7 @@ function TickerRow({ items, prices }: { items: TickEntry[]; prices: PriceMap | n
   }
 
   return (
-    <div className="flex gap-7 shrink-0 pr-7">
+    <div className="flex gap-6 sm:gap-8 shrink-0 pr-6 sm:pr-8">
       {nodes}
     </div>
   );
@@ -119,11 +119,11 @@ export default function Ticker() {
       {addrList.map((a) => (
         <TickerLoader key={a} address={a} onLoad={handleLoad} />
       ))}
-      <div className="border-b border-[#1f2630] bg-[#0b0e12] h-[30px] flex items-center overflow-hidden px-4 sm:px-6 lg:px-8 sticky top-[56px] z-40">
-        <div className="mono label shrink-0 text-[9px] tracking-[0.16em] text-[#6b7280] mr-4">
-          ◉ LIVE
+      <div className="border-b border-[#1f2630] bg-[#0b0e12] h-[30px] flex items-center overflow-hidden px-3 sm:px-6 lg:px-8 sticky top-[56px] z-40 max-w-full">
+        <div className="mono label shrink-0 inline-flex items-center gap-1.5 rounded-full border border-[#1f2630] bg-[#131820] px-2 py-0.5 text-[9px] tracking-[0.16em] text-[#8b96a5] mr-3 sm:mr-4">
+          <span aria-hidden className="text-[7px] leading-none text-[#2d9cdb]">◉</span> LIVE
         </div>
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 min-w-0 overflow-hidden relative">
           <div className="ticker-track flex">
             <TickerRow items={loaded} prices={prices} />
             <TickerRow items={loaded} prices={prices} />

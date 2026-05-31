@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
@@ -8,6 +8,13 @@ import Footer from "@/components/Footer";
 
 const inter = Inter({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
 const jetbrains = JetBrains_Mono({ variable: "--font-mono", subsets: ["latin"], display: "swap" });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b0e12",
+};
 
 export const metadata: Metadata = {
   title: "Propex — Prediction Markets on Arc",
@@ -31,7 +38,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrains.variable} dark`} suppressHydrationWarning>
-      <body className="text-[#f3f4f6] antialiased" suppressHydrationWarning>
+      <body className="text-[#f3f4f6] antialiased overflow-x-hidden" suppressHydrationWarning>
         <Providers>
           <Navbar />
           <Ticker />
