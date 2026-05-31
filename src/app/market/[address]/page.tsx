@@ -193,8 +193,8 @@ export default function MarketPage({ params }: Props) {
   return (
     <div className="bg-[#0b0e12]">
       {/* Breadcrumb */}
-      <div className="px-4 sm:px-6 lg:px-8 py-4 border-b border-[#1f2630] flex items-center gap-2 text-[12px]">
-        <Link href="/" className="text-[#8b96a5] hover:text-[#f3f4f6] flex items-center gap-1 transition-colors">
+      <div className="px-4 sm:px-6 lg:px-8 py-[14px] border-b border-[#1f2630] flex items-center gap-[10px] text-[12px]">
+        <Link href="/" className="text-[#8b96a5] hover:text-[#f3f4f6] flex items-center gap-1.5 transition-colors">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M6 2 L2 5 L6 8" />
           </svg>
@@ -206,19 +206,21 @@ export default function MarketPage({ params }: Props) {
         <span className="mono text-[11px] text-[#f3f4f6]">{shortId}</span>
       </div>
 
-      <div className="px-4 sm:px-6 lg:px-8 py-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
+      <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
         {/* LEFT COLUMN */}
-        <div className="flex flex-col gap-[18px] min-w-0">
-          <div className="flex gap-4 items-start">
-            <CoinIcon market={market} size={56} />
+        <div className="flex flex-col gap-3 sm:gap-[18px] min-w-0">
+          <div className="flex gap-3 sm:gap-4 items-start">
+            <div className="shrink-0">
+              <CoinIcon market={market} size={56} />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex gap-2 items-center mb-[8px] flex-wrap">
                 <CatBadge label={market.category || "Market"} />
                 <span className="mono label text-[#6b7280]">ID · {shortId}</span>
-                <span className="mono label text-[#6b7280]">· {shortenAddress(addr)}</span>
+                <span className="mono label text-[#6b7280] hidden sm:inline">· {shortenAddress(addr)}</span>
               </div>
               <h1
-                className="m-0 text-[22px] sm:text-[24px] font-semibold text-[#f3f4f6] leading-[1.25]"
+                className="m-0 text-[18px] sm:text-[24px] font-semibold text-[#f3f4f6] leading-[1.25] break-words"
                 style={{ letterSpacing: "-0.5px", textWrap: "balance" }}
               >
                 {market.question}
@@ -226,6 +228,7 @@ export default function MarketPage({ params }: Props) {
             </div>
           </div>
 
+          <div className="-mx-3 px-3 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar [&>*]:min-w-[560px] sm:[&>*]:min-w-0">
           <StatStrip>
             <StatStripItem label="Chance" value={`${yPct.toFixed(0)}%`} sub="Implied YES" />
             <StatStripItem
@@ -260,25 +263,26 @@ export default function MarketPage({ params }: Props) {
               last
             />
           </StatStrip>
+          </div>
 
-          <div className="border border-[#1f2630] rounded-[4px] bg-[#131820] p-[18px]">
-            <div className="flex justify-between items-baseline mb-[10px]">
+          <div className="border border-[#1f2630] rounded-[12px] bg-[#131820] p-3 sm:p-5 min-w-0 overflow-hidden shadow-[var(--shadow-card)]">
+            <div className="flex justify-between items-baseline mb-[12px] gap-2 flex-wrap">
               <div>
                 <div className="label mb-1">YES / NO odds</div>
                 <div className="mono text-[11px] text-[#8b96a5]">FPMM spot · re-priced per trade</div>
               </div>
-              <div className="mono text-[11px] text-[#8b96a5]">
+              <div className="mono text-[11px] text-[#8b96a5] whitespace-nowrap">
                 Pool {totalPool ? formatUSDC(totalPool) : "$0.00"}
               </div>
             </div>
-            <div className="flex items-center gap-[14px] mb-2">
-              <span className="mono text-[13px] text-[#22c55e] font-semibold min-w-[52px]">
+            <div className="flex items-center gap-2 sm:gap-[14px] mb-2">
+              <span className="mono text-[12px] sm:text-[13px] text-[#22c55e] font-semibold min-w-[44px] sm:min-w-[52px]">
                 YES {yPct.toFixed(0)}¢
               </span>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <OddsBar yes={yPct} height={10} />
               </div>
-              <span className="mono text-[13px] text-[#ef4444] font-semibold text-right min-w-[52px]">
+              <span className="mono text-[12px] sm:text-[13px] text-[#ef4444] font-semibold text-right min-w-[44px] sm:min-w-[52px]">
                 NO {nPct.toFixed(0)}¢
               </span>
             </div>
@@ -294,8 +298,8 @@ export default function MarketPage({ params }: Props) {
             />
           )}
 
-          <div className="border border-[#1f2630] rounded-[4px] bg-[#131820]">
-            <div className="flex border-b border-[#1f2630] pl-1 overflow-x-auto no-scrollbar">
+          <div className="border border-[#1f2630] rounded-[12px] bg-[#131820] overflow-hidden shadow-[var(--shadow-card)]">
+            <div className="flex border-b border-[#1f2630] px-2 overflow-x-auto no-scrollbar">
               {(
                 [
                   { k: "about" as Tab, label: "About" },
@@ -309,7 +313,7 @@ export default function MarketPage({ params }: Props) {
                   <button
                     key={t.k}
                     onClick={() => setTab(t.k)}
-                    className="bg-transparent border-none px-[14px] py-[12px] text-[12px] font-medium cursor-pointer transition-colors whitespace-nowrap -mb-px"
+                    className="bg-transparent border-none px-[14px] py-[13px] text-[12px] font-medium cursor-pointer transition-colors whitespace-nowrap -mb-px hover:text-[#f3f4f6]"
                     style={{
                       color: active ? "#f3f4f6" : "#8b96a5",
                       borderBottom: `1.5px solid ${active ? "#2d9cdb" : "transparent"}`,
@@ -320,13 +324,13 @@ export default function MarketPage({ params }: Props) {
                 );
               })}
             </div>
-            <div className="p-[18px] text-[13px] leading-[1.6] text-[#8b96a5]">
+            <div className="p-5 text-[13px] leading-[1.6] text-[#8b96a5]">
               {tab === "about" && (
                 <>
                   <p className="m-0 mb-3 whitespace-pre-wrap">
                     {humanDescription || <span className="text-[#3a4250]">No description.</span>}
                   </p>
-                  <div className="flex flex-wrap gap-[18px] pt-[14px] border-t border-[#1f2630]">
+                  <div className="flex flex-wrap gap-[18px] pt-[16px] border-t border-[#1f2630]">
                     <div>
                       <div className="label mb-1">Market address</div>
                       <a
@@ -397,8 +401,8 @@ export default function MarketPage({ params }: Props) {
         </div>
 
         {/* RIGHT COLUMN — sticky bet card */}
-        <div className="lg:sticky lg:top-[118px]">
-          <div className="border border-[#1f2630] rounded-[4px] bg-[#131820] p-[18px]">
+        <div className="lg:sticky lg:top-[118px] min-w-0">
+          <div className="border border-[#1f2630] rounded-[12px] bg-[#131820] p-3 sm:p-5 shadow-[var(--shadow-card)]">
             {!market.resolved ? (
               <>
                 {(!isConnected || wrongChain) && (
@@ -408,8 +412,8 @@ export default function MarketPage({ params }: Props) {
                 )}
 
                 {/* Buy / Sell mode toggle */}
-                <div className="flex items-center justify-between mb-[14px]">
-                  <div className="flex gap-[2px] p-[3px] rounded-[3px] border border-[#1f2630] bg-[#0b0e12]">
+                <div className="flex items-center justify-between mb-[16px]">
+                  <div className="flex gap-[3px] p-[3px] rounded-[8px] border border-[#1f2630] bg-[#0b0e12]">
                     {(["buy", "sell"] as Mode[]).map((m) => {
                       const active = mode === m;
                       const disabled = m === "sell" && !hasPosition;
@@ -419,7 +423,7 @@ export default function MarketPage({ params }: Props) {
                           type="button"
                           disabled={disabled}
                           onClick={() => setMode(m)}
-                          className="px-[14px] py-[5px] rounded-[2px] text-[11px] font-semibold uppercase tracking-[0.08em] cursor-pointer transition-colors"
+                          className="px-[14px] py-[8px] sm:py-[6px] rounded-[6px] text-[11px] font-semibold uppercase tracking-[0.08em] cursor-pointer transition-all duration-150 ease-out min-h-[36px] sm:min-h-0"
                           style={{
                             background: active ? "#1f2630" : "transparent",
                             color: active ? "#f3f4f6" : disabled ? "#3a4250" : "#8b96a5",
@@ -435,7 +439,7 @@ export default function MarketPage({ params }: Props) {
                 </div>
 
                 {/* Side toggle */}
-                <div className="grid grid-cols-2 gap-2 mb-[14px]">
+                <div className="grid grid-cols-2 gap-2.5 mb-[16px]">
                   {(["YES", "NO"] as BetSide[]).map((s) => {
                     const active = side === s;
                     const col = s === "YES" ? "#22c55e" : "#ef4444";
@@ -448,7 +452,7 @@ export default function MarketPage({ params }: Props) {
                         type="button"
                         disabled={sellDisabled}
                         onClick={() => !sellDisabled && setSide(s)}
-                        className="px-3 py-[14px] rounded-[4px] text-left transition-colors"
+                        className="px-3.5 py-[14px] rounded-[8px] text-left transition-all duration-150 ease-out"
                         style={{
                           border: `1px solid ${active ? col : "#1f2630"}`,
                           background: active
@@ -458,6 +462,7 @@ export default function MarketPage({ params }: Props) {
                             : "#0b0e12",
                           color: active ? col : sellDisabled ? "#3a4250" : "#f3f4f6",
                           cursor: sellDisabled ? "not-allowed" : "pointer",
+                          boxShadow: active ? `0 4px 16px -10px ${col}` : "none",
                         }}
                       >
                         <div className="text-[11px] tracking-[0.14em] font-semibold mb-1">{s}</div>
@@ -488,7 +493,7 @@ export default function MarketPage({ params }: Props) {
                           )}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 border border-[#1f2630] bg-[#0b0e12] rounded-[4px] px-3 py-[10px]">
+                      <div className="flex items-center gap-2 border border-[#1f2630] bg-[#0b0e12] rounded-[8px] px-3.5 py-[11px] transition-colors focus-within:border-[#2a3340]">
                         <span className="mono text-[14px] text-[#8b96a5]">$</span>
                         <input
                           type="number"
@@ -498,20 +503,20 @@ export default function MarketPage({ params }: Props) {
                           onChange={(e) => setAmount(e.target.value)}
                           placeholder="0"
                           disabled={writesDisabled}
-                          className="mono flex-1 bg-transparent border-none outline-none text-[#f3f4f6] text-[22px] font-semibold tracking-[-0.3px] w-0 min-w-0"
+                          className="mono flex-1 bg-transparent border-none outline-none text-[#f3f4f6] text-[20px] sm:text-[22px] font-semibold tracking-[-0.3px] w-0 min-w-0 truncate"
                         />
                         <span className="mono text-[12px] text-[#8b96a5]">USDC</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-[6px] mb-[18px]">
+                    <div className="grid grid-cols-4 gap-2 mb-[18px]">
                       {["10", "50", "100", "MAX"].map((v) => (
                         <button
                           key={v}
                           type="button"
                           disabled={v === "MAX" && (balanceLoading || balanceFormatted === null)}
                           onClick={() => setAmount(v === "MAX" ? (balanceFormatted ?? "") : v)}
-                          className="mono bg-[#0b0e12] border border-[#1f2630] text-[#8b96a5] py-[6px] rounded-[3px] cursor-pointer text-[11px] tracking-[0.04em] hover:text-[#f3f4f6] hover:border-[#2a3340] disabled:opacity-40 transition-colors"
+                          className="mono bg-[#0b0e12] border border-[#1f2630] text-[#8b96a5] py-[12px] sm:py-[7px] rounded-[8px] cursor-pointer text-[12px] sm:text-[11px] tracking-[0.04em] hover:text-[#f3f4f6] hover:border-[#2a3340] hover:bg-[#161d28] disabled:opacity-40 transition-all duration-150 ease-out min-h-[44px] sm:min-h-0"
                         >
                           {v === "MAX" ? "MAX" : `$${v}`}
                         </button>
@@ -524,7 +529,7 @@ export default function MarketPage({ params }: Props) {
                       </div>
                     )}
 
-                    <div className="border border-[#1f2630] rounded-[4px] bg-[#0b0e12] p-[12px] mb-[14px]">
+                    <div className="border border-[#1f2630] rounded-[8px] bg-[#0b0e12] p-[14px] mb-[16px]">
                       <Row
                         label="Avg price"
                         value={avgPriceBuy > 0 ? `${(avgPriceBuy * 100).toFixed(1)}¢` : "—"}
@@ -558,7 +563,7 @@ export default function MarketPage({ params }: Props) {
                     <button
                       type="submit"
                       disabled={!userAddress || isActing || !amountNum || writesDisabled}
-                      className="w-full py-[13px] px-4 rounded-[4px] border-none cursor-pointer font-bold text-[13px] tracking-[0.1em] uppercase transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full py-[15px] sm:py-[13px] px-4 rounded-[8px] border-none cursor-pointer font-bold text-[13px] tracking-[0.1em] uppercase transition-all duration-150 ease-out disabled:opacity-40 disabled:cursor-not-allowed min-h-[48px]"
                       style={{
                         background: sideColor,
                         color: "#0b0e12",
@@ -585,7 +590,7 @@ export default function MarketPage({ params }: Props) {
                           Holding {formatUSDC(userSideShares)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 border border-[#1f2630] bg-[#0b0e12] rounded-[4px] px-3 py-[10px]">
+                      <div className="flex items-center gap-2 border border-[#1f2630] bg-[#0b0e12] rounded-[8px] px-3.5 py-[11px] transition-colors focus-within:border-[#2a3340]">
                         <input
                           type="number"
                           min="0"
@@ -594,13 +599,13 @@ export default function MarketPage({ params }: Props) {
                           onChange={(e) => setSharesAmt(e.target.value)}
                           placeholder="0"
                           disabled={writesDisabled}
-                          className="mono flex-1 bg-transparent border-none outline-none text-[#f3f4f6] text-[22px] font-semibold tracking-[-0.3px] w-0 min-w-0"
+                          className="mono flex-1 bg-transparent border-none outline-none text-[#f3f4f6] text-[20px] sm:text-[22px] font-semibold tracking-[-0.3px] w-0 min-w-0 truncate"
                         />
                         <span className="mono text-[12px] text-[#8b96a5]">{side}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-[6px] mb-[18px]">
+                    <div className="grid grid-cols-4 gap-2 mb-[18px]">
                       {["25", "50", "75", "MAX"].map((v) => {
                         const pctVal = v === "MAX" ? 100 : parseInt(v);
                         return (
@@ -612,7 +617,7 @@ export default function MarketPage({ params }: Props) {
                               const val = (userSideShares * BigInt(pctVal)) / 100n;
                               setSharesAmt((Number(val) / 1e6).toFixed(6));
                             }}
-                            className="mono bg-[#0b0e12] border border-[#1f2630] text-[#8b96a5] py-[6px] rounded-[3px] cursor-pointer text-[11px] tracking-[0.04em] hover:text-[#f3f4f6] hover:border-[#2a3340] disabled:opacity-40 transition-colors"
+                            className="mono bg-[#0b0e12] border border-[#1f2630] text-[#8b96a5] py-[12px] sm:py-[7px] rounded-[8px] cursor-pointer text-[12px] sm:text-[11px] tracking-[0.04em] hover:text-[#f3f4f6] hover:border-[#2a3340] hover:bg-[#161d28] disabled:opacity-40 transition-all duration-150 ease-out min-h-[44px] sm:min-h-0"
                           >
                             {v === "MAX" ? "MAX" : `${v}%`}
                           </button>
@@ -626,7 +631,7 @@ export default function MarketPage({ params }: Props) {
                       </div>
                     )}
 
-                    <div className="border border-[#1f2630] rounded-[4px] bg-[#0b0e12] p-[12px] mb-[14px]">
+                    <div className="border border-[#1f2630] rounded-[8px] bg-[#0b0e12] p-[14px] mb-[16px]">
                       <Row
                         label="Avg price"
                         value={sellAvgPrice > 0 ? `${(sellAvgPrice * 100).toFixed(1)}¢` : "—"}
@@ -657,7 +662,7 @@ export default function MarketPage({ params }: Props) {
                         (sellSharesBig && sellSharesBig > userSideShares) ||
                         writesDisabled
                       }
-                      className="w-full py-[13px] px-4 rounded-[4px] border-none cursor-pointer font-bold text-[13px] tracking-[0.1em] uppercase transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full py-[15px] sm:py-[13px] px-4 rounded-[8px] border-none cursor-pointer font-bold text-[13px] tracking-[0.1em] uppercase transition-all duration-150 ease-out disabled:opacity-40 disabled:cursor-not-allowed min-h-[48px]"
                       style={{
                         background: sideColor,
                         color: "#0b0e12",
@@ -695,7 +700,7 @@ export default function MarketPage({ params }: Props) {
                       refetch();
                     }}
                     disabled={isActing}
-                    className="mt-3 w-full py-[13px] px-4 rounded-[4px] border-none cursor-pointer font-bold text-[13px] tracking-[0.1em] uppercase transition-opacity disabled:opacity-40"
+                    className="mt-3 w-full py-[15px] sm:py-[13px] px-4 rounded-[8px] border-none cursor-pointer font-bold text-[13px] tracking-[0.1em] uppercase transition-all duration-150 ease-out disabled:opacity-40 min-h-[48px]"
                     style={{ background: "#22c55e", color: "#0b0e12", boxShadow: "0 6px 24px -8px #22c55e" }}
                   >
                     {isActing ? <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin" /> : `Claim ${formatUSDC(payout)}`}
@@ -710,7 +715,7 @@ export default function MarketPage({ params }: Props) {
           </div>
 
           {hasPosition && (
-            <div className="border border-[#1f2630] rounded-[4px] bg-[#131820] p-[18px] mt-4">
+            <div className="border border-[#1f2630] rounded-[12px] bg-[#131820] p-5 mt-4 shadow-[var(--shadow-card)]">
               <div className="label mb-[10px]">Your position</div>
               <div className="space-y-[6px]">
                 {userYes > 0n && <Row label="YES shares" value={formatUSDC(userYes)} color="#22c55e" />}
@@ -768,8 +773,8 @@ function PriceVsTarget({
   const delta = ((price - cryptoMeta.startUsd) / cryptoMeta.startUsd) * 100;
   const requiredUp = ((target - price) / price) * 100;
   return (
-    <div className="border border-[#1f2630] rounded-[4px] bg-[#131820] p-[18px]">
-      <div className="flex justify-between items-baseline mb-[14px] flex-wrap gap-3">
+    <div className="border border-[#1f2630] rounded-[12px] bg-[#131820] p-5 shadow-[var(--shadow-card)]">
+      <div className="flex justify-between items-baseline mb-[16px] flex-wrap gap-3">
         <div>
           <div className="label mb-1">Live · {coin.symbol} / USD</div>
           <div className="flex items-baseline gap-[10px]">
@@ -803,7 +808,7 @@ function PriceVsTarget({
           )}
         </div>
       </div>
-      <div className="relative h-[18px] bg-[#0b0e12] border border-[#1f2630] rounded-[3px] overflow-hidden">
+      <div className="relative h-[18px] bg-[#0b0e12] border border-[#1f2630] rounded-[6px] overflow-hidden">
         <div
           className="absolute inset-0"
           style={{

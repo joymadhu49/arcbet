@@ -60,7 +60,7 @@ export default function CoinIcon({ market, size = 36, glyph, bg }: Props) {
         borderRadius: size / 2,
         background: finalBg,
         fontSize: size * 0.42,
-        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)",
       }}
     >
       {finalGlyph}

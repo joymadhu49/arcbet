@@ -10,13 +10,13 @@ export default function OddsBar({ yes, height = 6, showLabels = false }: Props) 
   return (
     <div>
       {showLabels && (
-        <div className="mono flex justify-between mb-1 text-[11px]">
+        <div className="mono flex justify-between gap-2 mb-1 text-[10px] sm:text-[11px] flex-wrap">
           <span className="text-[#22c55e]">YES {y.toFixed(0)}¢</span>
           <span className="text-[#ef4444]">NO {(100 - y).toFixed(0)}¢</span>
         </div>
       )}
       <div
-        className="flex overflow-hidden rounded-[2px] bg-[#1f2630]"
+        className="flex overflow-hidden rounded-full bg-[#1f2630] w-full"
         style={{ height }}
       >
         <div style={{ width: `${y}%`, background: "linear-gradient(90deg,#15803d,#22c55e)" }} />

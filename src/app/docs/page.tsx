@@ -37,11 +37,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-[110px]">
-      <h2 className="text-[20px] font-semibold tracking-[-0.3px] text-[#f3f4f6] mb-4">
+    <section
+      id={id}
+      className="scroll-mt-[110px] min-w-0 rounded-[12px] border border-[#1f2630] bg-[#131820] p-5 sm:p-6 shadow-[var(--shadow-card)]"
+    >
+      <h2 className="text-[18px] sm:text-[20px] font-semibold tracking-[-0.3px] text-[#f3f4f6] mb-4">
         {title}
       </h2>
-      <div className="text-[13.5px] leading-[1.7] text-[#c7cdd5] space-y-4">
+      <div className="text-[13.5px] leading-[1.75] text-[#c7cdd5] space-y-4 break-words [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_a]:transition-colors">
         {children}
       </div>
     </section>
@@ -50,7 +53,7 @@ function Section({
 
 function Code({ children }: { children: React.ReactNode }) {
   return (
-    <code className="mono text-[12px] bg-[#131820] border border-[#1f2630] px-[6px] py-[1px] rounded-[3px] text-[#e5e7eb]">
+    <code className="mono text-[12px] bg-[#0b0e12] border border-[#1f2630] px-[6px] py-[1.5px] rounded-[6px] text-[#e5e7eb] break-words">
       {children}
     </code>
   );
@@ -58,9 +61,9 @@ function Code({ children }: { children: React.ReactNode }) {
 
 function ContractRow({ name, address }: { name: string; address: string }) {
   return (
-    <div className="flex items-center justify-between border border-[#1f2630] rounded-[4px] px-3 py-2.5 bg-[#0f141b]">
-      <span className="text-[13px] text-[#f3f4f6] font-medium">{name}</span>
-      <span className="mono text-[11.5px] text-[#8b96a5] truncate ml-3">{address}</span>
+    <div className="flex items-center justify-between gap-2 border border-[#1f2630] rounded-[8px] px-3.5 py-3 bg-[#0b0e12] min-w-0 transition-colors hover:border-[#2a3340]">
+      <span className="text-[13px] text-[#f3f4f6] font-medium shrink-0">{name}</span>
+      <span className="mono text-[11.5px] text-[#8b96a5] truncate ml-3 min-w-0">{address}</span>
     </div>
   );
 }
@@ -69,29 +72,29 @@ export default function DocsPage() {
   const feePct = (PLATFORM_FEE_BPS / 100).toFixed(2);
 
   return (
-    <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8 py-10">
+    <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
       {/* Header */}
-      <div className="border-b border-[#1f2630] pb-6 mb-10">
+      <div className="animate-rise rounded-[16px] border border-[#1f2630] bg-[#131820] p-6 sm:p-8 mb-8 sm:mb-10 shadow-[var(--shadow-card)]">
         <div className="mono label mb-3">Documentation</div>
-        <h1 className="text-[32px] font-semibold tracking-[-0.6px] text-[#f3f4f6] mb-2">
+        <h1 className="text-[26px] sm:text-[32px] font-semibold tracking-[-0.6px] text-[#f3f4f6] mb-2.5">
           Propex Docs
         </h1>
-        <p className="text-[14px] text-[#8b96a5] max-w-2xl">
+        <p className="text-[13.5px] sm:text-[14px] leading-[1.65] text-[#8b96a5] max-w-2xl">
           A guide to using Propex — daily prediction markets settled on-chain in USDC on
           Arc Testnet. Everything you need to trade, resolve, and integrate.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8 lg:gap-10">
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-[110px] lg:self-start">
-          <div className="label mb-3">On this page</div>
-          <nav className="flex flex-col gap-1">
+          <div className="label mb-3 px-[10px] lg:px-0">On this page</div>
+          <nav className="flex flex-row flex-wrap gap-1 lg:flex-col lg:rounded-[12px] lg:border lg:border-[#1f2630] lg:bg-[#131820] lg:p-2 lg:shadow-[var(--shadow-card)]">
             {SECTIONS.map((s) => (
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="text-[13px] text-[#8b96a5] hover:text-[#f3f4f6] transition-colors py-[6px] px-[10px] -mx-[10px] rounded-[3px] hover:bg-[#131820]"
+                className="text-[13px] text-[#8b96a5] hover:text-[#f3f4f6] transition-colors py-[7px] px-[12px] rounded-[8px] hover:bg-[#161d28]"
               >
                 {s.title}
               </a>
@@ -100,7 +103,7 @@ export default function DocsPage() {
         </aside>
 
         {/* Content */}
-        <div className="space-y-12">
+        <div className="space-y-4 sm:space-y-5 min-w-0">
           <Section id="overview" title="Overview">
             <p>
               Propex is a non-custodial prediction-market platform. Each market asks a
@@ -132,7 +135,7 @@ export default function DocsPage() {
               implied probability up; selling does the reverse. Prices are always between
               $0.00 and $1.00 and sum to one.
             </p>
-            <ol className="list-decimal ml-5 space-y-1.5 text-[13px]">
+            <ol className="list-decimal ml-5 space-y-2 text-[13px] marker:text-[#8b96a5] marker:font-medium">
               <li>An admin deploys a market via the factory, seeded with USDC liquidity.</li>
               <li>Traders buy/sell YES or NO shares at the current curve price.</li>
               <li>At the resolution time, the outcome is submitted on-chain.</li>
@@ -147,7 +150,7 @@ export default function DocsPage() {
               UI quotes the expected shares / USDC you&apos;ll receive at the current curve
               price, including fee.
             </p>
-            <ul className="list-disc ml-5 space-y-1.5 text-[13px]">
+            <ul className="list-disc ml-5 space-y-2 text-[13px] marker:text-[#2d9cdb]">
               <li>
                 Minimum bet size is <Code>0.01 USDC</Code> so fees never round to zero.
               </li>
@@ -176,7 +179,7 @@ export default function DocsPage() {
               submits the outcome on-chain (<Code>YES</Code>, <Code>NO</Code>, or{" "}
               <Code>CANCELLED</Code>).
             </p>
-            <ul className="list-disc ml-5 space-y-1.5 text-[13px]">
+            <ul className="list-disc ml-5 space-y-2 text-[13px] marker:text-[#2d9cdb]">
               <li><strong className="text-[#f3f4f6]">YES / NO:</strong> winning shares redeem 1 USDC each.</li>
               <li><strong className="text-[#f3f4f6]">CANCELLED:</strong> all positions are refunded at pool-proportional value.</li>
               <li>Resolved markets are removed from the live feed and remain accessible at their market URL.</li>
@@ -189,7 +192,7 @@ export default function DocsPage() {
               factory deploy — find them via the factory&apos;s{" "}
               <Code>getAllMarkets()</Code>.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <ContractRow name="USDC" address={ARC_CONTRACTS.USDC} />
               <ContractRow name="EURC" address={ARC_CONTRACTS.EURC} />
               <ContractRow name="USYC" address={ARC_CONTRACTS.USYC} />
@@ -208,9 +211,9 @@ export default function DocsPage() {
           </Section>
 
           <Section id="faq" title="FAQ">
-            <div className="space-y-4">
-              <div>
-                <div className="text-[13.5px] font-semibold text-[#f3f4f6] mb-1">
+            <div className="space-y-2.5">
+              <div className="rounded-[8px] border border-[#1f2630] bg-[#0b0e12] p-4">
+                <div className="text-[13.5px] font-semibold text-[#f3f4f6] mb-1.5">
                   What happens if a trade partially fills?
                 </div>
                 <p>
@@ -218,8 +221,8 @@ export default function DocsPage() {
                   settles. There is no partial fill.
                 </p>
               </div>
-              <div>
-                <div className="text-[13.5px] font-semibold text-[#f3f4f6] mb-1">
+              <div className="rounded-[8px] border border-[#1f2630] bg-[#0b0e12] p-4">
+                <div className="text-[13.5px] font-semibold text-[#f3f4f6] mb-1.5">
                   Can I cancel a pending trade?
                 </div>
                 <p>
@@ -227,8 +230,8 @@ export default function DocsPage() {
                   your wallet. Once mined, exit by selling your shares back.
                 </p>
               </div>
-              <div>
-                <div className="text-[13.5px] font-semibold text-[#f3f4f6] mb-1">
+              <div className="rounded-[8px] border border-[#1f2630] bg-[#0b0e12] p-4">
+                <div className="text-[13.5px] font-semibold text-[#f3f4f6] mb-1.5">
                   Is Propex available in my region?
                 </div>
                 <p>
@@ -280,13 +283,13 @@ export default function DocsPage() {
           </Section>
 
           {/* Footer of docs */}
-          <div className="pt-6 border-t border-[#1f2630] flex items-center justify-between">
+          <div className="rounded-[12px] border border-[#1f2630] bg-[#131820] px-5 py-4 flex items-center justify-between gap-3 shadow-[var(--shadow-card)]">
             <span className="text-[12px] text-[#6b7280]">
               Last updated {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
             </span>
             <Link
               href="/"
-              className="text-[12.5px] text-[#2d9cdb] hover:underline"
+              className="text-[12.5px] text-[#2d9cdb] hover:underline transition-colors"
             >
               ← Back to markets
             </Link>

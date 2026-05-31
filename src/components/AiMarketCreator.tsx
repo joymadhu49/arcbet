@@ -146,7 +146,7 @@ export function AiMarketCreator({
   }
 
   return (
-    <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
+    <div className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-4 sm:p-5 shadow-[var(--shadow-card)]">
       <div className="mb-4 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-[#a855f7]" />
         <h3 className="text-[14px] font-semibold text-[#f3f4f6]">AI market creator</h3>
@@ -160,7 +160,7 @@ export function AiMarketCreator({
             onChange={(e) => setInstruction(e.target.value)}
             rows={3}
             placeholder="Describe the market you want to create — e.g. 'Will SOL close above $280 by end of week?' or 'Make a market on whether Bitcoin hits $150k this month'."
-            className="w-full resize-none rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none"
+            className="w-full resize-none rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] placeholder-[#363d4b] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none"
           />
 
           <div className="mt-2 flex flex-wrap gap-2">
@@ -170,7 +170,7 @@ export function AiMarketCreator({
                 type="button"
                 onClick={() => setInstruction(ex)}
                 disabled={thinking}
-                className="rounded-[3px] border border-[#1f2630] bg-[#0b0e12] px-[10px] py-[4px] text-[11px] text-[#8b96a5] hover:border-[#2a3340] hover:text-[#f3f4f6] disabled:opacity-50 transition-colors"
+                className="rounded-full border border-[#1f2630] bg-[#0b0e12] px-[12px] py-[5px] text-[11px] text-[#8b96a5] hover:border-[#2a3340] hover:text-[#f3f4f6] disabled:opacity-50 transition-colors duration-150 ease-out"
               >
                 {truncate(ex, 50)}
               </button>
@@ -178,18 +178,18 @@ export function AiMarketCreator({
           </div>
 
           {error && (
-            <div className="mt-3 flex items-start gap-2 rounded-[4px] border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-2 text-[11.5px] text-[#ef4444]">
+            <div className="mt-3 flex items-start gap-2 rounded-[8px] border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-2 text-[11.5px] text-[#ef4444]">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               <span className="break-words">{error}</span>
             </div>
           )}
 
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <span className="mono label">Auto-detect category · suggest source</span>
             <button
               onClick={() => propose(instruction)}
               disabled={thinking || !instruction.trim() || disabled}
-              className="flex items-center justify-center gap-1.5 rounded-[3px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[8px] text-[12px] font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-1.5 rounded-[8px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[10px] text-[12px] font-semibold text-white shadow-[var(--shadow-cta)] hover:opacity-90 disabled:opacity-50 transition-all duration-150 ease-out"
             >
               {thinking ? (
                 <>
@@ -208,11 +208,11 @@ export function AiMarketCreator({
       {proposal && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px]">
-            <span className="rounded-[3px] border border-[#1f2630] bg-[#0b0e12] px-[8px] py-[3px] mono label">
+            <span className="rounded-[6px] border border-[#1f2630] bg-[#0b0e12] px-[8px] py-[3px] mono label">
               {proposal.category}
             </span>
             {proposal.crypto && (
-              <span className="rounded-[3px] border border-[#a855f7]/30 bg-[#a855f7]/10 px-[8px] py-[3px] mono text-[10px] text-[#a855f7]">
+              <span className="rounded-[6px] border border-[#a855f7]/30 bg-[#a855f7]/10 px-[8px] py-[3px] mono text-[10px] text-[#a855f7]">
                 {COIN_BY_ID[proposal.crypto.coin].symbol} {formatUsd(proposal.crypto.startUsd)} → {formatUsd(proposal.crypto.targetUsd)}
               </span>
             )}
@@ -223,7 +223,7 @@ export function AiMarketCreator({
             <input
               value={editQuestion}
               onChange={(e) => setEditQuestion(e.target.value)}
-              className="w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] focus:border-[#2d9cdb] focus:outline-none"
+              className="w-full rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none"
             />
           </div>
 
@@ -233,7 +233,7 @@ export function AiMarketCreator({
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
               rows={4}
-              className="w-full resize-none rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] focus:border-[#2d9cdb] focus:outline-none"
+              className="w-full resize-none rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none"
             />
           </div>
 
@@ -247,7 +247,7 @@ export function AiMarketCreator({
                   alt=""
                   onError={(ev) => { (ev.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
                   onLoad={(ev) => { (ev.currentTarget as HTMLImageElement).style.visibility = "visible"; }}
-                  className="h-9 w-9 rounded-[4px] border border-[#1f2630] bg-[#0b0e12] object-cover"
+                  className="h-9 w-9 rounded-[8px] border border-[#1f2630] bg-[#0b0e12] object-cover"
                 />
               )}
               <input
@@ -255,7 +255,7 @@ export function AiMarketCreator({
                 value={editImageUrl}
                 onChange={(e) => setEditImageUrl(e.target.value)}
                 placeholder="https://… (optional)"
-                className="w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none"
+                className="w-full rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] placeholder-[#363d4b] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none"
               />
             </div>
           </div>
@@ -268,22 +268,22 @@ export function AiMarketCreator({
               max={30}
               value={editDays}
               onChange={(e) => setEditDays(Math.max(1, Math.min(30, Number(e.target.value) || 1)))}
-              className="w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] focus:border-[#2d9cdb] focus:outline-none"
+              className="w-full rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-2.5 text-[13px] text-[#f3f4f6] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none"
             />
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 rounded-[4px] border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-2 text-[11.5px] text-[#ef4444]">
+            <div className="flex items-start gap-2 rounded-[8px] border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-2 text-[11.5px] text-[#ef4444]">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               <span className="break-words">{error}</span>
             </div>
           )}
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <button
               onClick={confirm}
               disabled={submitting || !editQuestion.trim() || !editDescription.trim() || disabled}
-              className="flex flex-1 items-center justify-center gap-2 rounded-[3px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] py-[9px] text-[12px] font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="flex flex-1 items-center justify-center gap-2 rounded-[8px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] py-[11px] sm:py-[9px] min-h-[44px] sm:min-h-0 text-[12px] font-semibold text-white shadow-[var(--shadow-cta)] hover:opacity-90 disabled:opacity-50 transition-all duration-150 ease-out"
             >
               {submitting ? (
                 <>
@@ -295,24 +295,26 @@ export function AiMarketCreator({
                 </>
               )}
             </button>
-            <button
-              onClick={() => propose(instruction)}
-              disabled={thinking || submitting}
-              className="flex items-center gap-1.5 rounded-[3px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[9px] text-[11px] text-[#8b96a5] hover:border-[#2a3340] hover:text-[#f3f4f6] disabled:opacity-50 transition-colors"
-            >
-              {thinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-              Regenerate
-            </button>
-            <button
-              onClick={() => {
-                setProposal(null);
-                setError(null);
-              }}
-              disabled={submitting}
-              className="rounded-[3px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[9px] text-[11px] text-[#6b7280] hover:text-[#9aa5b1] disabled:opacity-50 transition-colors"
-            >
-              Discard
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => propose(instruction)}
+                disabled={thinking || submitting}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[11px] sm:py-[9px] min-h-[44px] sm:min-h-0 text-[11px] text-[#8b96a5] hover:border-[#2a3340] hover:text-[#f3f4f6] disabled:opacity-50 transition-colors duration-150 ease-out"
+              >
+                {thinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Regenerate
+              </button>
+              <button
+                onClick={() => {
+                  setProposal(null);
+                  setError(null);
+                }}
+                disabled={submitting}
+                className="flex-1 sm:flex-none rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[11px] sm:py-[9px] min-h-[44px] sm:min-h-0 text-[11px] text-[#6b7280] hover:text-[#9aa5b1] disabled:opacity-50 transition-colors duration-150 ease-out"
+              >
+                Discard
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -144,7 +144,7 @@ function Metric({
   sub: string;
 }) {
   return (
-    <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
+    <div className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-5 shadow-[var(--shadow-card)]">
       <div className="mb-4 flex items-center justify-between">
         <Icon className="h-4 w-4" style={{ color: accent }} />
       </div>
@@ -244,7 +244,7 @@ function QueueCard({
   }
 
   return (
-    <div className="rounded-[4px] border border-[#1f2630] bg-[#0b0e12] p-4">
+    <div className="rounded-[12px] border border-[#1f2630] bg-[#0b0e12] p-4">
       <div className="flex items-start justify-between gap-3 mb-3">
         <Link
           href={`/market/${address}`}
@@ -326,7 +326,7 @@ function QueueCard({
               )
             }
             disabled={!!pending || disabled}
-            className="flex items-center justify-center gap-1 rounded-[3px] border border-[#22c55e]/35 bg-transparent py-[8px] text-[11px] font-semibold text-[#22c55e] transition-colors hover:bg-[#22c55e]/10 disabled:opacity-40"
+            className="flex items-center justify-center gap-1 rounded-[8px] border border-[#22c55e]/35 bg-transparent py-[8px] text-[11px] font-semibold text-[#22c55e] transition-colors duration-150 ease-out hover:bg-[#22c55e]/10 disabled:opacity-40"
             style={{ letterSpacing: "0.08em" }}
           >
             {pending === "yes" ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
@@ -344,7 +344,7 @@ function QueueCard({
               )
             }
             disabled={!!pending || disabled}
-            className="flex items-center justify-center gap-1 rounded-[3px] border border-[#ef4444]/35 bg-transparent py-[8px] text-[11px] font-semibold text-[#ef4444] transition-colors hover:bg-[#ef4444]/10 disabled:opacity-40"
+            className="flex items-center justify-center gap-1 rounded-[8px] border border-[#ef4444]/35 bg-transparent py-[8px] text-[11px] font-semibold text-[#ef4444] transition-colors duration-150 ease-out hover:bg-[#ef4444]/10 disabled:opacity-40"
             style={{ letterSpacing: "0.08em" }}
           >
             {pending === "no" ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
@@ -362,7 +362,7 @@ function QueueCard({
               )
             }
             disabled={!!pending || disabled}
-            className="flex items-center justify-center gap-1 rounded-[3px] border border-[#1f2630] bg-transparent py-[8px] text-[11px] font-semibold text-[#8b96a5] transition-colors hover:text-[#f3f4f6] hover:border-[#2a3340] disabled:opacity-40"
+            className="flex items-center justify-center gap-1 rounded-[8px] border border-[#1f2630] bg-transparent py-[8px] text-[11px] font-semibold text-[#8b96a5] transition-colors duration-150 ease-out hover:text-[#f3f4f6] hover:border-[#2a3340] disabled:opacity-40"
             style={{ letterSpacing: "0.08em" }}
           >
             {pending === "cancel" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
@@ -515,7 +515,7 @@ function DailyCreator({
   }
 
   return (
-    <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
+    <div className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-5 shadow-[var(--shadow-card)]">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#f3f4f6]">
@@ -536,7 +536,7 @@ function DailyCreator({
         <button
           onClick={createAll}
           disabled={!!busy || !prices || disabled}
-          className="flex items-center gap-1.5 rounded-[3px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-3 py-[7px] text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-[8px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-3 py-[7px] text-[12px] font-semibold text-white shadow-[var(--shadow-cta)] transition-all duration-150 ease-out hover:opacity-90 disabled:opacity-50"
         >
           {busy === "all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
           Launch all {TRACKED_COINS.length}
@@ -555,7 +555,7 @@ function DailyCreator({
               key={coin.id}
               onClick={() => createOne(coin.id)}
               disabled={!!busy || !price || disabled}
-              className="rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[14px] text-left transition-colors hover:border-[#2a3340] disabled:opacity-40"
+              className="rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[14px] text-left transition-colors duration-150 ease-out hover:border-[#2a3340] disabled:opacity-40"
             >
               <div className="text-[12px] font-semibold text-[#f3f4f6] mb-[10px]">{coin.symbol}</div>
               <div className="mono text-[13px] font-medium text-[#f3f4f6]">
@@ -633,10 +633,10 @@ function CustomCreator({
   }
 
   const inputCls =
-    "w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[10px] text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none";
+    "w-full rounded-[8px] border border-[#1f2630] bg-[#0b0e12] px-3 py-[10px] text-[13px] text-[#f3f4f6] placeholder-[#363d4b] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none";
 
   return (
-    <form onSubmit={submit} className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-5">
+    <form onSubmit={submit} className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-5 shadow-[var(--shadow-card)]">
       <h3 className="text-[14px] font-semibold text-[#f3f4f6] mb-4">Custom market</h3>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
@@ -698,7 +698,7 @@ function CustomCreator({
         <button
           type="submit"
           disabled={creating || disabled}
-          className="flex items-center gap-1.5 rounded-[3px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[9px] text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-[8px] bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[9px] text-[12px] font-semibold text-white shadow-[var(--shadow-cta)] transition-all duration-150 ease-out hover:opacity-90 disabled:opacity-50"
         >
           {creating ? (
             <>
@@ -822,7 +822,7 @@ function TreasuryTopUp({
             value={amount}
             onChange={(ev) => setAmount(ev.target.value)}
             disabled={disabled || sending}
-            className="w-full rounded-[4px] border border-[#1f2630] bg-[#0b0e12] pl-3 pr-[52px] py-[9px] text-[13px] text-[#f3f4f6] placeholder-[#363d4b] focus:border-[#2d9cdb] focus:outline-none disabled:opacity-50"
+            className="w-full rounded-[8px] border border-[#1f2630] bg-[#0b0e12] pl-3 pr-[52px] py-[9px] text-[13px] text-[#f3f4f6] placeholder-[#363d4b] transition-colors duration-150 ease-out focus:border-[#2d9cdb] focus:outline-none disabled:opacity-50"
           />
           <button
             type="button"
@@ -836,7 +836,7 @@ function TreasuryTopUp({
         <button
           type="submit"
           disabled={disabled || sending || !amount}
-          className="flex items-center gap-1.5 rounded-[3px] bg-[#1f2630] hover:bg-[#2a3340] px-4 py-[9px] text-[12px] font-semibold text-[#f3f4f6] transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-[8px] bg-[#1f2630] hover:bg-[#2a3340] px-4 py-[9px] text-[12px] font-semibold text-[#f3f4f6] transition-colors duration-150 ease-out disabled:opacity-50"
         >
           {sending ? (
             <>
@@ -1044,12 +1044,12 @@ function AdminDashboard() {
               Live treasury metrics, market exposure, pending resolutions, and creation tools.
             </p>
           </div>
-          <div className="flex gap-[2px] p-[3px] rounded-[4px] border border-[#1f2630] bg-[#131820]">
+          <div className="flex gap-[2px] p-[3px] rounded-full border border-[#1f2630] bg-[#131820]">
             {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => onTabClick(t)}
-                className="px-[14px] py-[7px] rounded-[3px] text-[12px] font-medium capitalize cursor-pointer transition-colors"
+                className="px-[14px] py-[7px] rounded-full text-[12px] font-medium capitalize cursor-pointer transition-colors duration-150 ease-out"
                 style={{
                   background: activeTab === t ? "#1f2630" : "transparent",
                   color: activeTab === t ? "#f3f4f6" : "#8b96a5",
@@ -1075,7 +1075,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 lg:px-8 space-y-[14px] pb-10">
+      <div className="px-4 sm:px-6 lg:px-8 space-y-[16px] pb-10">
         <div className="space-y-2">
           <NetworkGate />
           {isConnected && !wrongChain && ownerMismatch && (
@@ -1091,7 +1091,7 @@ function AdminDashboard() {
         </div>
 
         {/* Metrics */}
-        <div id="admin-overview" className="grid gap-[12px] grid-cols-1 md:grid-cols-2 xl:grid-cols-4 scroll-mt-[72px]">
+        <div id="admin-overview" className="grid gap-[14px] grid-cols-1 md:grid-cols-2 xl:grid-cols-4 scroll-mt-[72px]">
           <Metric
             icon={Wallet}
             accent="#22c55e"
@@ -1123,14 +1123,14 @@ function AdminDashboard() {
         </div>
 
         {/* Protocol overview + treasury */}
-        <div id="admin-treasury" className="grid gap-[14px] xl:grid-cols-[1.35fr_1fr] scroll-mt-[72px]">
-          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+        <div id="admin-treasury" className="grid gap-[16px] xl:grid-cols-[1.35fr_1fr] scroll-mt-[72px]">
+          <section className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-6 shadow-[var(--shadow-card)]">
             <div className="flex items-baseline justify-between mb-5">
               <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6]">Protocol overview</h3>
               <button
                 onClick={loadPrices}
                 disabled={loadingPrices}
-                className="mono text-[11px] text-[#6b7280] hover:text-[#f3f4f6] transition-colors flex items-center gap-[5px]"
+                className="mono text-[11px] text-[#6b7280] hover:text-[#f3f4f6] transition-colors duration-150 ease-out flex items-center gap-[5px]"
               >
                 <RefreshCw className={`h-3 w-3 ${loadingPrices ? "animate-spin" : ""}`} />
                 Refresh prices
@@ -1204,7 +1204,7 @@ function AdminDashboard() {
             </div>
           </section>
 
-          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+          <section className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-6 shadow-[var(--shadow-card)]">
             <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6] mb-5">Treasury & risk</h3>
 
             <div className="flex flex-col gap-[14px] mb-5">
@@ -1216,7 +1216,7 @@ function AdminDashboard() {
                 <div className="flex gap-[4px]">
                   <button
                     onClick={() => copyAddress(treasuryAddress, "Treasury")}
-                    className="w-[28px] h-[28px] rounded-[3px] border border-[#1f2630] text-[#8b96a5] flex items-center justify-center hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors"
+                    className="w-[28px] h-[28px] rounded-[6px] border border-[#1f2630] text-[#8b96a5] flex items-center justify-center hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors duration-150 ease-out"
                     aria-label="Copy treasury"
                   >
                     <Copy className="h-3 w-3" />
@@ -1225,7 +1225,7 @@ function AdminDashboard() {
                     href={explorerUrl(treasuryAddress)}
                     target="_blank"
                     rel="noreferrer"
-                    className="w-[28px] h-[28px] rounded-[3px] border border-[#1f2630] text-[#8b96a5] flex items-center justify-center hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors"
+                    className="w-[28px] h-[28px] rounded-[6px] border border-[#1f2630] text-[#8b96a5] flex items-center justify-center hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors duration-150 ease-out"
                     aria-label="Open in explorer"
                   >
                     <ExternalLink className="h-3 w-3" />
@@ -1322,8 +1322,8 @@ function AdminDashboard() {
         </div>
 
         {/* Ledger + notes */}
-        <div id="admin-settlement" className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] scroll-mt-[72px]">
-          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] overflow-hidden">
+        <div id="admin-settlement" className="grid gap-[16px] xl:grid-cols-[1.5fr_1fr] scroll-mt-[72px]">
+          <section className="rounded-[12px] border border-[#1f2630] bg-[#131820] overflow-hidden shadow-[var(--shadow-card)]">
             <div className="flex items-baseline justify-between px-6 pt-5 pb-4">
               <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6]">Market ledger</h3>
               <span className="mono label">Top 6 by pool</span>
@@ -1355,7 +1355,7 @@ function AdminDashboard() {
             )}
           </section>
 
-          <section className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+          <section className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-6 shadow-[var(--shadow-card)]">
             <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6] mb-5">Operator notes</h3>
             <div className="flex flex-col gap-4">
               {[
@@ -1392,8 +1392,8 @@ function AdminDashboard() {
               Writes {writesDisabled ? "disabled" : "enabled"} · signature required
             </span>
           </div>
-          <div className="grid gap-[14px] xl:grid-cols-[1.1fr_1fr] items-stretch">
-            <div className="flex flex-col gap-[14px]">
+          <div className="grid gap-[16px] xl:grid-cols-[1.1fr_1fr] items-stretch">
+            <div className="flex flex-col gap-[16px]">
               <AiMarketCreator
                 prices={prices}
                 onCreated={refetch}
@@ -1416,7 +1416,7 @@ function AdminDashboard() {
                 onError={setBannerError}
               />
             </div>
-            <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6 h-full">
+            <div className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-6 h-full shadow-[var(--shadow-card)]">
               <div className="flex items-baseline justify-between mb-4">
                 <div>
                   <h3 className="m-0 text-[14px] font-semibold text-[#f3f4f6]">Settlement queue</h3>
@@ -1430,11 +1430,11 @@ function AdminDashboard() {
                   <Loader2 className="h-5 w-5 animate-spin text-[#2d9cdb]" />
                 </div>
               ) : sortedAddrs.length === 0 ? (
-                <div className="rounded-[4px] border border-dashed border-[#1f2630] py-10 text-center text-[13px] text-[#6b7280]">
+                <div className="rounded-[12px] border border-dashed border-[#1f2630] py-10 text-center text-[13px] text-[#6b7280]">
                   No markets yet — launch your first daily batch on the left.
                 </div>
               ) : (
-                <div className="flex flex-col gap-[10px] max-h-[900px] overflow-y-auto pr-[2px]">
+                <div className="flex flex-col gap-[12px] max-h-[900px] overflow-y-auto pr-[2px]">
                   {sortedAddrs.map((a) => (
                     <QueueCard
                       key={a}

@@ -14,6 +14,8 @@ export default function PriceChart({ data, height = 180, color = "#22c55e" }: Pr
   const series = data.length ? data : [0.5, 0.5];
   const W = 640;
   const H = height;
+  // Tailwind-only responsive heights are applied to the wrapper; the SVG uses
+  // preserveAspectRatio="none" so it stretches to the wrapper height on mobile.
   const max = Math.max(...series);
   const min = Math.min(...series);
   const rangeY = max - min || 0.2;
@@ -28,11 +30,11 @@ export default function PriceChart({ data, height = 180, color = "#22c55e" }: Pr
   const area = `${path} L${last[0]} ${H} L${pts[0][0]} ${H} Z`;
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full max-w-full overflow-hidden">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        style={{ width: "100%", height: H, display: "block" }}
+        className="block w-full h-[140px] sm:h-[170px] md:h-[180px]"
       >
         <defs>
           <linearGradient id="pcFill" x1="0" x2="0" y1="0" y2="1">
@@ -61,16 +63,15 @@ export default function PriceChart({ data, height = 180, color = "#22c55e" }: Pr
         <circle cx={last[0]} cy={last[1]} r="3" fill={color} />
         <circle cx={last[0]} cy={last[1]} r="6" fill={color} opacity="0.25" />
       </svg>
-      <div className="absolute right-[10px] top-[10px] flex gap-1">
+      <div className="mt-2 flex flex-wrap gap-1 sm:mt-0 sm:absolute sm:right-[10px] sm:top-[10px] sm:flex-nowrap">
         {RANGES.map((t) => {
           const active = t === range;
           return (
             <button
               key={t}
               onClick={() => setRange(t)}
-              className="mono text-[10px] tracking-[0.08em] rounded-[2px] cursor-pointer"
+              className="mono text-[10px] tracking-[0.08em] rounded-full cursor-pointer px-[10px] py-[6px] sm:px-[9px] sm:py-[3px] min-h-[28px] sm:min-h-0 transition-colors duration-150 ease-out"
               style={{
-                padding: "3px 8px",
                 background: active ? "#1f2630" : "transparent",
                 border: `1px solid ${active ? "#2a3340" : "transparent"}`,
                 color: active ? "#f3f4f6" : "#8b96a5",

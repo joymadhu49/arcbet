@@ -142,7 +142,7 @@ function SellButton({ marketAddress }: { marketAddress: `0x${string}` }) {
         e.stopPropagation();
         router.push(`/market/${marketAddress}?mode=sell`);
       }}
-      className="mono text-[10px] font-bold tracking-[0.1em] uppercase text-[#2d9cdb] border border-[#2d9cdb] bg-transparent rounded-[2px] px-[8px] py-[4px] hover:bg-[#2d9cdb] hover:text-[#0b0e12] transition-colors cursor-pointer"
+      className="mono text-[10px] font-bold tracking-[0.1em] uppercase text-[#2d9cdb] border border-[#2d9cdb] bg-transparent rounded-[6px] px-[10px] py-[5px] hover:bg-[#2d9cdb] hover:text-[#0b0e12] transition-colors duration-150 ease-out cursor-pointer"
     >
       Sell →
     </button>
@@ -159,7 +159,7 @@ function ClaimButton({ address }: { address: `0x${string}` }) {
         claimWinnings();
       }}
       disabled={isLoading}
-      className="bg-[#f59e0b] text-[#0b0e12] border-none px-[10px] py-[5px] text-[10px] font-bold tracking-[0.1em] uppercase rounded-[2px] cursor-pointer disabled:opacity-40"
+      className="bg-[#f59e0b] text-[#0b0e12] border-none px-[12px] py-[6px] text-[10px] font-bold tracking-[0.1em] uppercase rounded-[6px] cursor-pointer transition-all duration-150 ease-out hover:brightness-110 disabled:opacity-40"
     >
       {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Claim"}
     </button>
@@ -179,7 +179,7 @@ function PositionRow({ p, i }: { p: Position; i: number }) {
     statusNode = (
       <div className="flex items-center gap-[10px]">
         <div className="flex items-center gap-[6px]">
-          <div className="w-[6px] h-[6px] rounded-[3px] bg-[#22c55e]" />
+          <div className="w-[6px] h-[6px] rounded-full bg-[#22c55e]" />
           <span className="mono text-[11px] text-[#8b96a5]">Open</span>
         </div>
         <SellButton marketAddress={p.marketAddress} />
@@ -198,7 +198,7 @@ function PositionRow({ p, i }: { p: Position; i: number }) {
   return (
     <Link
       href={`/market/${p.marketAddress}`}
-      className="grid gap-[10px] items-center px-[18px] py-[14px] border-b border-[#1f2630] transition-colors hover:bg-[#0f141b]"
+      className="grid gap-[10px] items-center px-[18px] py-[15px] border-b border-[#1f2630] transition-colors duration-150 ease-out hover:bg-[#161d28]"
       style={{
         gridTemplateColumns: "1.8fr 72px 100px 120px 120px 170px",
         background: i % 2 ? "#131820" : "transparent",
@@ -216,7 +216,7 @@ function PositionRow({ p, i }: { p: Position; i: number }) {
         </div>
       </div>
       <div
-        className="justify-self-start px-[8px] py-[3px] rounded-[2px] text-[10px] font-bold tracking-[0.12em] text-center"
+        className="justify-self-start px-[9px] py-[3px] rounded-[6px] text-[10px] font-bold tracking-[0.12em] text-center"
         style={{
           color: sideColor,
           border: `1px solid ${sideColor}`,
@@ -236,6 +236,84 @@ function PositionRow({ p, i }: { p: Position; i: number }) {
         <div className="mono text-[13px] text-[#f3f4f6]">${payoutDollars.toFixed(2)}</div>
       </div>
       <div className="justify-self-end">{statusNode}</div>
+    </Link>
+  );
+}
+
+function PositionCard({ p }: { p: Position }) {
+  const sideColor = p.side === "YES" ? "#22c55e" : "#ef4444";
+  const yPct = p.yesOdds ? Number(p.yesOdds) / 1e16 : 50;
+  const currentPriceCents = p.side === "YES" ? yPct : 100 - yPct;
+  const sharesDollars = Number(p.shares) / 1e6;
+  const currentValue = (sharesDollars * currentPriceCents) / 100;
+  const payoutDollars = Number(p.payout) / 1e6;
+
+  let statusNode: React.ReactNode;
+  if (p.status === "open") {
+    statusNode = (
+      <div className="flex items-center gap-[8px]">
+        <div className="w-[6px] h-[6px] rounded-full bg-[#22c55e]" />
+        <span className="mono text-[11px] text-[#8b96a5]">Open</span>
+      </div>
+    );
+  } else if (p.status === "claimed") {
+    statusNode = <span className="mono text-[11px] text-[#22c55e]">✓ Claimed</span>;
+  } else if (p.status === "resolved-win") {
+    statusNode = <span className="mono text-[11px] text-[#22c55e]">✓ Won</span>;
+  } else if (p.status === "resolved-loss") {
+    statusNode = <span className="mono text-[11px] text-[#ef4444]">✕ Lost</span>;
+  } else {
+    statusNode = null;
+  }
+
+  return (
+    <Link
+      href={`/market/${p.marketAddress}`}
+      className="block px-4 py-[14px] border-b border-[#1f2630] transition-colors duration-150 ease-out hover:bg-[#161d28] active:bg-[#161d28]"
+    >
+      <div className="flex items-start gap-[10px] min-w-0">
+        <CoinIcon market={p.market} size={28} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] text-[#f3f4f6] font-medium leading-[1.35] line-clamp-2">
+            {p.market.question}
+          </div>
+          <div className="flex items-center gap-2 mt-[4px]">
+            <span className="mono label text-[#6b7280]">{p.market.category}</span>
+            <span
+              className="px-[7px] py-[2px] rounded-[6px] text-[10px] font-bold tracking-[0.1em]"
+              style={{
+                color: sideColor,
+                border: `1px solid ${sideColor}`,
+                background: p.side === "YES" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+              }}
+            >
+              {p.side}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-3 rounded-[8px] bg-[#0b0e12] border border-[#1f2630] px-3 py-[10px]">
+        <div>
+          <div className="mono label text-[#6b7280] mb-[2px]">Shares</div>
+          <div className="mono text-[12px] text-[#f3f4f6]">{sharesDollars.toFixed(2)}</div>
+        </div>
+        <div>
+          <div className="mono label text-[#6b7280] mb-[2px]">Current</div>
+          <div className="mono text-[12px] text-[#f3f4f6]">${currentValue.toFixed(2)}</div>
+          <div className="mono label text-[#6b7280]">@ {currentPriceCents.toFixed(0)}¢</div>
+        </div>
+        <div>
+          <div className="mono label text-[#6b7280] mb-[2px]">Est. payout</div>
+          <div className="mono text-[12px] text-[#f3f4f6]">${payoutDollars.toFixed(2)}</div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#1f2630]">
+        {statusNode ?? <span />}
+        <div className="flex gap-2">
+          {p.status === "open" && <SellButton marketAddress={p.marketAddress} />}
+          {p.status === "claimable" && <ClaimButton address={p.marketAddress} />}
+        </div>
+      </div>
     </Link>
   );
 }
@@ -285,11 +363,11 @@ function PortfolioSummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[14px]">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((c, i) => (
         <div
           key={i}
-          className="relative overflow-hidden border border-[#1f2630] bg-[#131820] rounded-[4px] p-4 flex flex-col gap-[6px]"
+          className="relative overflow-hidden border border-[#1f2630] bg-[#131820] rounded-[12px] p-4 sm:p-5 flex flex-col gap-[7px] shadow-[var(--shadow-card)]"
         >
           <div className="label">{c.label}</div>
           <div
@@ -305,7 +383,7 @@ function PortfolioSummaryCards({
             <button
               onClick={onClaimAll}
               disabled={claimAllLoading}
-              className="absolute right-[14px] top-[14px] bg-[#f59e0b] text-[#0b0e12] border-none px-[10px] py-[5px] text-[10px] font-bold tracking-[0.14em] uppercase rounded-[2px] cursor-pointer disabled:opacity-40"
+              className="absolute right-[14px] top-[14px] bg-[#f59e0b] text-[#0b0e12] border-none px-[12px] py-[6px] text-[10px] font-bold tracking-[0.14em] uppercase rounded-[6px] cursor-pointer transition-all duration-150 ease-out hover:brightness-110 disabled:opacity-40"
             >
               {claimAllLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Claim all"}
             </button>
@@ -338,8 +416,8 @@ function PnLCurve({ positions }: { positions: Position[] }) {
   const illustrative = positions.length === 0;
 
   return (
-    <div className="border border-[#1f2630] bg-[#131820] rounded-[4px] p-4">
-      <div className="flex justify-between items-baseline mb-[10px] flex-wrap gap-2">
+    <div className="border border-[#1f2630] bg-[#131820] rounded-[12px] p-4 sm:p-5 shadow-[var(--shadow-card)]">
+      <div className="flex justify-between items-baseline mb-3 flex-wrap gap-2">
         <div>
           <div className="label mb-1">Cumulative P&L · illustrative</div>
           <div className="mono text-[18px] font-semibold text-[#8b96a5]">
@@ -350,7 +428,7 @@ function PnLCurve({ positions }: { positions: Position[] }) {
           {["7D", "30D", "90D", "ALL"].map((t, i) => (
             <span
               key={t}
-              className="mono text-[10px] tracking-[0.08em] rounded-[2px] px-2 py-[3px]"
+              className="mono text-[10px] tracking-[0.08em] rounded-full px-[10px] py-[4px]"
               style={{
                 background: i === 1 ? "#1f2630" : "transparent",
                 border: `1px solid ${i === 1 ? "#2a3340" : "transparent"}`,
@@ -434,7 +512,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
   };
 
   return (
-    <div className="border border-[#1f2630] rounded-[4px] bg-[#131820] overflow-hidden">
+    <div className="border border-[#1f2630] rounded-[12px] bg-[#131820] overflow-hidden shadow-[var(--shadow-card)]">
       <div className="flex items-center border-b border-[#1f2630] pl-[14px] pr-[6px] overflow-x-auto no-scrollbar">
         {tabs.map((t) => {
           const active = filter === t.k;
@@ -450,7 +528,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
             >
               {t.label}
               <span
-                className="mono text-[10px] bg-[#0b0e12] px-[5px] py-[1px] rounded-[2px]"
+                className="mono text-[10px] bg-[#0b0e12] px-[6px] py-[1px] rounded-full"
                 style={{ color: t.accent || "#6b7280" }}
               >
                 {t.count}
@@ -464,7 +542,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
         </div>
         <button
           onClick={exportCSV}
-          className="bg-transparent border border-[#1f2630] text-[#8b96a5] px-[10px] py-[5px] text-[11px] rounded-[2px] cursor-pointer mr-[6px] hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors"
+          className="bg-transparent border border-[#1f2630] text-[#8b96a5] px-[12px] py-[6px] text-[11px] rounded-[8px] cursor-pointer mr-[6px] hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors duration-150 ease-out"
         >
           Export CSV
         </button>
@@ -567,7 +645,7 @@ function PortfolioContent({ userAddress }: { userAddress: `0x${string}` }) {
 
   if (!addresses || addresses.length === 0) {
     return (
-      <div className="border border-dashed border-[#1f2630] rounded-[4px] py-16 text-center text-[12.5px] text-[#6b7280]">
+      <div className="border border-dashed border-[#1f2630] rounded-[12px] py-16 text-center text-[12.5px] text-[#6b7280]">
         No markets yet.
       </div>
     );
@@ -584,7 +662,7 @@ function PortfolioContent({ userAddress }: { userAddress: `0x${string}` }) {
         />
       ))}
 
-      <div className="mb-4">
+      <div className="mb-5 animate-rise">
         <PortfolioSummaryCards
           positions={list}
           claimables={claimables}
@@ -592,10 +670,10 @@ function PortfolioContent({ userAddress }: { userAddress: `0x${string}` }) {
           claimAllLoading={claimAllLoading}
         />
       </div>
-      <div className="mb-4">
+      <div className="mb-5 animate-rise">
         <PnLCurve positions={list} />
       </div>
-      <div className="mb-10">
+      <div className="mb-10 animate-rise">
         <PortfolioTable positions={list} />
       </div>
     </>
@@ -654,20 +732,20 @@ export default function PortfolioPage() {
               <button
                 onClick={onRefresh}
                 disabled={refreshing}
-                className="bg-transparent border border-[#1f2630] text-[#f3f4f6] px-[14px] py-[8px] rounded-[4px] cursor-pointer text-[12px] font-medium hover:border-[#2a3340] transition-colors disabled:opacity-50 flex items-center gap-[6px]"
+                className="bg-transparent border border-[#1f2630] text-[#f3f4f6] px-[14px] py-[8px] rounded-[8px] cursor-pointer text-[12px] font-medium hover:border-[#2a3340] hover:bg-[#161d28] transition-all duration-150 ease-out disabled:opacity-50 flex items-center gap-[6px]"
               >
                 <RefreshCw className={`h-[12px] w-[12px] ${refreshing ? "animate-spin" : ""}`} />
                 Refresh
               </button>
               <button
                 onClick={onCopyUsdc}
-                className="bg-transparent border border-[#1f2630] text-[#f3f4f6] px-[14px] py-[8px] rounded-[4px] cursor-pointer text-[12px] font-medium hover:border-[#2a3340] transition-colors"
+                className="bg-transparent border border-[#1f2630] text-[#f3f4f6] px-[14px] py-[8px] rounded-[8px] cursor-pointer text-[12px] font-medium hover:border-[#2a3340] hover:bg-[#161d28] transition-all duration-150 ease-out"
               >
                 Deposit USDC
               </button>
               <button
                 disabled
-                className="bg-[#131820] border border-[#2a3340] text-[#8b96a5] px-[14px] py-[8px] rounded-[4px] cursor-not-allowed text-[12px] font-medium opacity-60"
+                className="bg-[#131820] border border-[#2a3340] text-[#8b96a5] px-[14px] py-[8px] rounded-[8px] cursor-not-allowed text-[12px] font-medium opacity-60"
               >
                 Withdraw · soon
               </button>
@@ -676,7 +754,7 @@ export default function PortfolioPage() {
         </div>
 
         {!isConnected ? (
-          <div className="border border-dashed border-[#1f2630] rounded-[4px] py-16 text-center">
+          <div className="border border-dashed border-[#1f2630] rounded-[12px] py-16 text-center animate-rise">
             <div className="text-[13.5px] font-medium text-[#f3f4f6]">Connect your wallet</div>
             <p className="mt-1 text-[12.5px] text-[#6b7280]">
               Connect to view your positions and claim winnings.

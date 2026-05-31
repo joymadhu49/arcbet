@@ -138,8 +138,8 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
   if (!proof) {
     const walletIsAdmin = address && address.toLowerCase() === ADMIN_ADDRESS;
     return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <div className="rounded-[4px] border border-[#1f2630] bg-[#131820] p-6">
+      <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-16">
+        <div className="rounded-[12px] border border-[#1f2630] bg-[#131820] p-5 sm:p-6 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-[8px] mb-3">
             <Shield className="h-[18px] w-[18px] text-[#f59e0b]" />
             <span className="mono label text-[#f59e0b]">Admin · sign-in required</span>
@@ -159,7 +159,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
               <ConnectButton showBalance={false} />
             </div>
           ) : !walletIsAdmin ? (
-            <div className="rounded-[3px] border border-[#ef4444]/40 bg-[#ef4444]/10 p-3 text-[12px] text-[#ef4444]">
+            <div className="rounded-[6px] border border-[#ef4444]/40 bg-[#ef4444]/10 p-3 text-[12px] text-[#ef4444]">
               Connected wallet ({shortenAddress(address ?? "")}) is not the admin.
               Switch to the admin wallet in your wallet extension.
             </div>
@@ -167,7 +167,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
             <button
               onClick={signIn}
               disabled={signingIn}
-              className="w-full rounded-[4px] border-none bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[11px] text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="w-full min-h-[44px] rounded-[8px] border-none bg-gradient-to-r from-[#3b82f6] to-[#a855f7] px-4 py-[11px] text-[13px] font-semibold uppercase tracking-[0.1em] text-white shadow-[var(--shadow-cta)] transition-all duration-150 ease-out hover:opacity-90 disabled:opacity-50"
             >
               {signingIn ? (
                 <span className="inline-flex items-center justify-center gap-2">
@@ -193,7 +193,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {mismatch && (
-        <div className="mx-4 sm:mx-6 lg:mx-8 my-3 rounded-[4px] border border-[#f59e0b]/40 bg-[#f59e0b]/10 p-3 text-[12px] text-[#f59e0b]">
+        <div className="mx-4 sm:mx-6 lg:mx-8 my-3 rounded-[8px] border border-[#f59e0b]/40 bg-[#f59e0b]/10 p-3 text-[12px] text-[#f59e0b]">
           Signed in as {shortenAddress(proof.address)} but connected wallet is{" "}
           {shortenAddress(address ?? "")}. On-chain writes use the connected wallet;
           sign out and sign in again with the correct wallet.
@@ -202,7 +202,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
       <div className="flex justify-end px-4 sm:px-6 lg:px-8 pt-3">
         <button
           onClick={signOut}
-          className="flex items-center gap-[6px] rounded-[3px] border border-[#1f2630] bg-[#131820] px-[10px] py-[5px] text-[11px] mono text-[#8b96a5] hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors"
+          className="flex items-center gap-[6px] rounded-[6px] border border-[#1f2630] bg-[#131820] px-[10px] py-[6px] sm:py-[5px] text-[11px] mono text-[#8b96a5] hover:text-[#f3f4f6] hover:border-[#2a3340] transition-colors duration-150 ease-out"
         >
           <LogOut className="h-[11px] w-[11px]" />
           Sign out
